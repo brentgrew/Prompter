@@ -1,0 +1,1226 @@
+<Window x:Class="Prompter.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Prompter"
+        xmlns:vm="clr-namespace:Prompter.ViewModels"
+        xmlns:conv="clr-namespace:Prompter.Converters"
+        mc:Ignorable="d"
+        Title="Prompter - AI Prompt Manager" Height="840" Width="1220"
+        Icon="pack://application:,,,/Prompter;component/prompter.ico"
+        MinHeight="620" MinWidth="850"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        FontFamily="Segoe UI"
+        Foreground="{DynamicResource WindowForegroundBrush}">
+
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:BoolToVisibilityConverter x:Key="InvertBoolToVis" Invert="True"/>
+        <conv:NullToVisibilityConverter x:Key="NullToVis"/>
+        <conv:NullToVisibilityConverter x:Key="InvertNullToVis" Invert="True"/>
+
+        <!-- Base Button Style -->
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentButtonForegroundBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" TargetName="border" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Opacity" TargetName="border" Value="0.8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" TargetName="border" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="OutlineButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="{DynamicResource OutlineButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OutlineButtonForegroundBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineButtonBorderBrush}"/>
+        </Style>
+
+        <Style x:Key="DangerOutlineButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="{DynamicResource DangerBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DangerForegroundBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DangerBorderBrush}"/>
+        </Style>
+
+        <Style x:Key="QuickCopyButton" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource QuickCopyBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource QuickCopyForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource QuickCopyBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" TargetName="border" Value="{DynamicResource QuickCopyHoverBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Opacity" TargetName="border" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="QuickDeleteButton" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource DangerBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DangerForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DangerBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="7,3"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" TargetName="border" Value="0.8"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Opacity" TargetName="border" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FlatTextBox" TargetType="TextBox">
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource InputForegroundBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource InputForegroundBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="2"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="64"/>
+            <RowDefinition Height="6*" MinHeight="260"/>
+            <RowDefinition Height="6"/>
+            <RowDefinition Height="4*" MinHeight="180"/>
+        </Grid.RowDefinitions>
+
+        <!-- TOP BAR -->
+        <Border Grid.Row="0" Background="{DynamicResource TopBarBackgroundBrush}" Padding="18,0">
+            <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Brand & Logo -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="pack://application:,,,/Prompter;component/prompter.png" Width="36" Height="36" Margin="0,0,12,0"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="PROMPTER" FontSize="16" FontWeight="ExtraBold" Foreground="#FFFFFF"/>
+                        <TextBlock Text="AI Prompt Manager &amp; Vault" FontSize="11" Foreground="#94A3B8"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Search Input in Middle -->
+                <Border Grid.Column="1" Margin="30,0" MaxWidth="440" Background="#1E293B" CornerRadius="6" BorderBrush="#334155" BorderThickness="1" Height="38">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="34"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="🔍" FontSize="13" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" x:Name="txtGlobalSearch"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 Background="Transparent" BorderThickness="0" Foreground="#F8FAFC"
+                                 FontSize="13" VerticalContentAlignment="Center" CaretBrush="#FFFFFF"
+                                 ToolTip="Type to filter prompts in the active folder"/>
+                        <!-- Watermark -->
+                        <TextBlock Grid.Column="1" Text="Search prompts in active folder..."
+                                   Foreground="#64748B" FontSize="13" VerticalAlignment="Center"
+                                   IsHitTestVisible="False" Margin="2,0,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=txtGlobalSearch}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+
+                <!-- Right Action Buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Hotkey indicator -->
+                    <Border Background="#1E293B" CornerRadius="6" Padding="10,6" Margin="0,0,10,0"
+                            BorderBrush="#334155" BorderThickness="1"
+                            ToolTip="Press Pause/Break anywhere in Windows or click the system tray icon to summon Prompter">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="⌨" FontSize="11" Foreground="#94A3B8" Margin="0,0,6,0"/>
+                            <TextBlock Text="Hotkey: " FontSize="11.5" Foreground="#94A3B8"/>
+                            <TextBlock Text="Pause/Break" FontSize="11.5" FontWeight="Bold" Foreground="#38BDF8"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Theme Toggle Button -->
+                    <Button Style="{StaticResource OutlineButton}" Margin="0,0,10,0" Height="36" Padding="12,0"
+                            Command="{Binding ToggleThemeCommand}"
+                            ToolTip="Switch between Light and Dark mode">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ThemeToggleIcon}" FontSize="12" Margin="0,0,6,0"/>
+                            <TextBlock Text="{Binding ThemeToggleText}" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Lock All Button -->
+                    <Button Style="{StaticResource DangerOutlineButton}" Margin="0,0,10,0" Height="36"
+                            Padding="12,0" ToolTip="Instantly lock all password-protected folders"
+                            Command="{Binding LockAllFoldersCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔒" FontSize="13" Margin="0,0,6,0"/>
+                            <TextBlock Text="Lock All"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- New Prompt Button -->
+                    <Button Style="{StaticResource ModernButton}" Height="36" Padding="14,0"
+                            Command="{Binding AddPromptCommand}"
+                            IsEnabled="{Binding CanAccessPrompts}"
+                            ToolTip="Add a new prompt to the selected folder">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="➕" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="New Prompt" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- MAIN 3-COLUMN WORKSPACE -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" MinWidth="200" MaxWidth="360"/>
+                <ColumnDefinition Width="340" MinWidth="260" MaxWidth="480"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- COLUMN 1: FOLDERS SIDEBAR -->
+            <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Folders Header -->
+                    <DockPanel Grid.Row="0" Margin="16,14,16,10">
+                        <TextBlock Text="FOLDERS" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Folders.Count, StringFormat='({0})'}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        <Button Style="{StaticResource QuickCopyButton}" Content="➕ Add" HorizontalAlignment="Right"
+                                Padding="8,4" Command="{Binding AddFolderCommand}" ToolTip="Create a new folder"/>
+                    </DockPanel>
+
+                    <!-- Folders List -->
+                    <ListBox Grid.Row="1" x:Name="lstFolders"
+                             ItemsSource="{Binding Folders}"
+                             SelectedItem="{Binding SelectedFolder, Mode=TwoWay}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             SelectionMode="Single" Margin="8,0">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="10,8"/>
+                                <Setter Property="Margin" Value="0,3"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="itemBorder"
+                                                    Background="{DynamicResource FolderCardBackgroundBrush}"
+                                                    BorderBrush="{DynamicResource FolderCardBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" TargetName="itemBorder" Value="{DynamicResource FolderCardHoverBrush}"/>
+                                                    <Setter Property="BorderBrush" TargetName="itemBorder" Value="{DynamicResource SubtleBorderBrush}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" TargetName="itemBorder" Value="{DynamicResource FolderCardSelectedBrush}"/>
+                                                    <Setter Property="BorderBrush" TargetName="itemBorder" Value="{DynamicResource FolderCardSelectedBorderBrush}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="2,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="22"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Vector Folder / Lock Icon -->
+                                    <Grid Grid.Column="0" Width="18" Height="18" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                        <!-- Normal Folder -->
+                                        <Path x:Name="folderNormal"
+                                              Data="M 2 5 C 2 3.9 2.9 3 4 3 L 8.5 3 C 9.3 3 10.1 3.5 10.5 4.3 L 11.5 6 L 19 6 C 20.1 6 21 6.9 21 8 L 21 17 C 21 18.1 20.1 19 19 19 L 4 19 C 2.9 19 2 18.1 2 17 Z"
+                                              Fill="{DynamicResource FolderIconBrush}"
+                                              Stretch="Uniform" Visibility="Visible"/>
+                                        <!-- Locked -->
+                                        <Path x:Name="folderLocked"
+                                              Data="M 6 10 L 6 7 C 6 4.2 8.2 2 11 2 C 13.8 2 16 4.2 16 7 L 16 10 L 17.5 10 C 18.3 10 19 10.7 19 11.5 L 19 19.5 C 19 20.3 18.3 21 17.5 21 L 4.5 21 C 3.7 21 3 20.3 3 19.5 L 3 11.5 C 3 10.7 3.7 10 4.5 10 Z M 8 10 L 14 10 L 14 7 C 14 5.3 12.7 4 11 4 C 9.3 4 8 5.3 8 7 Z"
+                                              Fill="{DynamicResource LockIconBrush}"
+                                              Stretch="Uniform" Visibility="Collapsed"/>
+                                        <!-- Unlocked -->
+                                        <Path x:Name="folderUnlocked"
+                                              Data="M 6 7 C 6 4.2 8.2 2 11 2 C 13.8 2 16 4.2 16 7 L 14 7 C 14 5.3 12.7 4 11 4 C 9.3 4 8 5.3 8 7 L 8 10 L 17.5 10 C 18.3 10 19 10.7 19 11.5 L 19 19.5 C 19 20.3 18.3 21 17.5 21 L 4.5 21 C 3.7 21 3 20.3 3 19.5 L 3 11.5 C 3 10.7 3.7 10 4.5 10 L 6 10 Z"
+                                              Fill="{DynamicResource UnlockIconBrush}"
+                                              Stretch="Uniform" Visibility="Collapsed"/>
+                                    </Grid>
+
+                                    <!-- Folder Name -->
+                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13"
+                                               Foreground="{DynamicResource TextHeadingBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="6,0,6,0"/>
+
+                                    <!-- Prompt Count Badge -->
+                                    <Border Grid.Column="2" Background="{DynamicResource FolderBadgeBackgroundBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding PromptCount}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource FolderBadgeForegroundBrush}"/>
+                                    </Border>
+                                </Grid>
+                                <DataTemplate.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsPasswordProtected}" Value="True"/>
+                                            <Condition Binding="{Binding IsUnlocked}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter TargetName="folderNormal" Property="Visibility" Value="Collapsed"/>
+                                        <Setter TargetName="folderLocked" Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsPasswordProtected}" Value="True"/>
+                                            <Condition Binding="{Binding IsUnlocked}" Value="True"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter TargetName="folderNormal" Property="Visibility" Value="Collapsed"/>
+                                        <Setter TargetName="folderUnlocked" Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+
+                        <!-- Context Menu on Folder Items -->
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="🔓 Unlock / Lock Folder"
+                                          Command="{Binding ToggleLockFolderCommand}"/>
+                                <MenuItem Header="🔑 Password &amp; Security Settings..."
+                                          Command="{Binding ChangeFolderPasswordCommand}"/>
+                                <Separator/>
+                                <MenuItem Header="✏️ Rename Folder"
+                                          Command="{Binding RenameFolderCommand}"/>
+                                <MenuItem Header="🗑 Delete Folder"
+                                          Command="{Binding DeleteFolderCommand}"/>
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                    </ListBox>
+
+                    <!-- Sidebar Footer -->
+                    <Border Grid.Row="2" Padding="12,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+                        <Button Style="{StaticResource OutlineButton}" HorizontalAlignment="Stretch" Height="36"
+                                Command="{Binding AddFolderCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="➕" Margin="0,0,6,0" FontSize="11"/>
+                                <TextBlock Text="Create New Folder"/>
+                            </StackPanel>
+                        </Button>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- COLUMN 2: PROMPTS LIST IN ACTIVE FOLDER -->
+            <Border Grid.Column="1" Background="{DynamicResource CenterListBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Prompts Header -->
+                    <Border Grid.Row="0" Background="{DynamicResource SidebarBackgroundBrush}" Padding="16,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding SelectedFolder.DisplayName, FallbackValue='Select a Folder'}"
+                                           FontWeight="Bold" FontSize="14.5" Foreground="{DynamicResource TextHeadingBrush}" TextTrimming="CharacterEllipsis"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                    <TextBlock Text="{Binding SelectedFolder.StatusText, FallbackValue=''}" FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Text=" • " FontSize="11.5" Foreground="{DynamicResource TextSubtleBrush}"
+                                               Visibility="{Binding CanAccessPrompts, Converter={StaticResource BoolToVis}}"/>
+                                    <TextBlock Text="{Binding SelectedFolder.PromptCount, StringFormat='{}{0} prompt(s)'}"
+                                               FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}"
+                                               Visibility="{Binding CanAccessPrompts, Converter={StaticResource BoolToVis}}"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Folder Actions Menu -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource QuickCopyButton}" Content="Lock/Unlock" Margin="0,0,6,0"
+                                        Command="{Binding ToggleLockFolderCommand}"
+                                        Visibility="{Binding SelectedFolder.IsPasswordProtected, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"/>
+                                <Button Style="{StaticResource ModernButton}" Content="➕ Prompt" Padding="8,4"
+                                        Command="{Binding AddPromptCommand}"
+                                        IsEnabled="{Binding CanAccessPrompts}"
+                                        ToolTip="Add prompt to this folder"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Content Area: Depends on whether folder is locked or unlocked -->
+                    <!-- Case A: Folder is Locked -->
+                    <Grid Grid.Row="1" Visibility="{Binding IsFolderLocked, Converter={StaticResource BoolToVis}}">
+                        <Border Background="{DynamicResource CardBackgroundBrush}" Margin="16" CornerRadius="10" Padding="20" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" VerticalAlignment="Center">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="🔒" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                                <TextBlock Text="Folder is Locked" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextHeadingBrush}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Prompts in this folder are encrypted on disk. Enter your password to view and copy them."
+                                           FontSize="12.5" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,6,0,16"/>
+                                <Button Style="{StaticResource ModernButton}" Content="🔓 Unlock Folder"
+                                        Command="{Binding ToggleLockFolderCommand}"
+                                        Padding="16,8" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Case B: Folder is accessible -->
+                    <Grid Grid.Row="1" Visibility="{Binding CanAccessPrompts, Converter={StaticResource BoolToVis}}">
+                        <!-- Empty prompt state -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="20"
+                                    Visibility="{Binding SelectedFolder.Prompts.Count, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
+                            <TextBlock Text="📝" FontSize="32" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                            <TextBlock Text="No Prompts in This Folder" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Click '+ Prompt' above to create one." FontSize="12" Foreground="{DynamicResource TextSubtleBrush}" HorizontalAlignment="Center" Margin="0,4,0,12"/>
+                            <Button Style="{StaticResource OutlineButton}" Content="+ Add First Prompt"
+                                    Command="{Binding AddPromptCommand}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Prompts List with Copy button next to title -->
+                        <ListBox x:Name="lstPrompts"
+                                 ItemsSource="{Binding FilteredPrompts}"
+                                 SelectedItem="{Binding SelectedPrompt, Mode=TwoWay}"
+                                 Background="Transparent" BorderThickness="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 SelectionMode="Single" Margin="8,8">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="10,10"/>
+                                    <Setter Property="Margin" Value="0,3"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="itemBorder" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="BorderBrush" TargetName="itemBorder" Value="{DynamicResource AccentPrimaryBrush}"/>
+                                                        <Setter Property="Background" TargetName="itemBorder" Value="{DynamicResource CardHoverBackgroundBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter Property="BorderBrush" TargetName="itemBorder" Value="{DynamicResource CardSelectedBorderBrush}"/>
+                                                        <Setter Property="Background" TargetName="itemBorder" Value="{DynamicResource CardSelectedBackgroundBrush}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="2">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Row 1: Title and prominent COPY button next to it -->
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Prompt Title (Clickable) -->
+                                            <TextBlock Grid.Column="0" Text="{Binding DisplayTitle}"
+                                                       FontWeight="Bold" FontSize="13.5" Foreground="{DynamicResource TextHeadingBrush}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+                                            <!-- Action Buttons next to the Title: Copy & Delete -->
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Style="{StaticResource QuickCopyButton}"
+                                                        ToolTip="Copy this prompt to clipboard"
+                                                        Click="CopyButton_Click"
+                                                        Tag="{Binding}"
+                                                        Margin="0,0,5,0">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="📋" FontSize="11" Margin="0,0,4,0"/>
+                                                        <TextBlock Text="Copy"/>
+                                                    </StackPanel>
+                                                </Button>
+
+                                                <Button Style="{StaticResource QuickDeleteButton}"
+                                                        ToolTip="Delete this prompt"
+                                                        Click="DeleteButton_Click"
+                                                        Tag="{Binding}">
+                                                    <TextBlock Text="🗑" FontSize="11"/>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Row 2: Prompt snippet preview -->
+                                        <TextBlock Grid.Row="1" Text="{Binding PreviewSnippet}"
+                                                   FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"
+                                                   Margin="0,6,0,0"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- COLUMN 3: PROMPT VIEWER & TEXT BOX (Displays prompt on click) -->
+            <Border Grid.Column="2" Background="{DynamicResource ContentAreaBackgroundBrush}">
+                <Grid>
+                    <!-- Empty State: No prompt selected -->
+                    <Grid Visibility="{Binding SelectedPrompt, Converter={StaticResource InvertNullToVis}}">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="360">
+                            <Border Width="64" Height="64" Background="{DynamicResource BadgeBackgroundBrush}" CornerRadius="32" Margin="0,0,0,16" HorizontalAlignment="Center">
+                                <TextBlock Text="💡" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="No Prompt Selected" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource TextHeadingBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Click on any prompt title from the list on the left to display and edit its full text here."
+                                       FontSize="13" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Active Prompt Viewer & Editor -->
+                    <Grid Visibility="{Binding SelectedPrompt, Converter={StaticResource NullToVis}}" Margin="24,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Row 0: Action Toolbar (Copy Prompt, Save Changes, Delete) -->
+                        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                            <TextBlock Text="PROMPT DETAILS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSubtleBrush}" VerticalAlignment="Center"/>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <Button Style="{StaticResource QuickCopyButton}" Height="34" Padding="14,0" Margin="0,0,8,0"
+                                        Command="{Binding CopyPromptCommand}"
+                                        CommandParameter="{Binding SelectedPrompt}"
+                                        ToolTip="Copy entire prompt to clipboard">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📋" FontSize="13" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Copy Prompt" FontSize="12.5"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Style="{StaticResource ModernButton}" Height="34" Padding="14,0" Margin="0,0,8,0"
+                                        Command="{Binding SaveCurrentPromptCommand}"
+                                        ToolTip="Save updates made to this prompt">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="💾" FontSize="12" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Save Changes" FontSize="12.5"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Style="{StaticResource DangerOutlineButton}" Height="34" Padding="10,0"
+                                        Command="{Binding DeletePromptCommand}"
+                                        ToolTip="Delete this prompt">
+                                    <TextBlock Text="🗑" FontSize="13"/>
+                                </Button>
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- Row 1: Dedicated Full-Width Prompt Title (on its own line just above details) -->
+                        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                            <TextBlock Text="TITLE" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextSubtleBrush}" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding SelectedPrompt.Title, UpdateSourceTrigger=PropertyChanged}"
+                                     FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextHeadingBrush}"
+                                     CaretBrush="{DynamicResource TextHeadingBrush}"
+                                     BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SubtleBorderBrush}" Background="Transparent"
+                                     Padding="0,2,0,6" ToolTip="Prompt Title"/>
+                        </StackPanel>
+
+                        <!-- Row 2: Stats Bar (Word count, Char count, Last updated) -->
+                        <Border Grid.Row="2" Background="{DynamicResource StatsBarBackgroundBrush}" CornerRadius="6" Padding="12,6" Margin="0,0,0,12" BorderBrush="{DynamicResource StatsBarBorderBrush}" BorderThickness="1">
+                            <DockPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="📊 " FontSize="11.5"/>
+                                    <TextBlock Text="{Binding SelectedPrompt.WordCount, StringFormat='{}{0} words'}" FontSize="12" Foreground="{DynamicResource TextBodyBrush}" FontWeight="SemiBold"/>
+                                    <TextBlock Text=" • " Foreground="{DynamicResource TextSubtleBrush}" Margin="6,0"/>
+                                    <TextBlock Text="{Binding SelectedPrompt.CharacterCount, StringFormat='{}{0} characters'}" FontSize="12" Foreground="{DynamicResource TextBodyBrush}" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <TextBlock HorizontalAlignment="Right"
+                                           Text="{Binding SelectedPrompt.UpdatedAt, StringFormat='Last modified: {0:MMM dd, yyyy HH:mm}'}"
+                                           FontSize="11.5" Foreground="{DynamicResource TextSubtleBrush}" VerticalAlignment="Center"/>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Row 3: Prompt Content TextBox -->
+                        <Grid Grid.Row="3">
+                            <TextBox x:Name="txtPromptContent"
+                                     Text="{Binding SelectedPrompt.Content, UpdateSourceTrigger=PropertyChanged}"
+                                     AcceptsReturn="True"
+                                     AcceptsTab="True"
+                                     TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto"
+                                     FontFamily="Consolas, Cascadia Code, Segoe UI"
+                                     FontSize="14"
+                                     Padding="14"
+                                     Background="{DynamicResource InputBackgroundBrush}"
+                                     Foreground="{DynamicResource InputForegroundBrush}"
+                                     CaretBrush="{DynamicResource InputForegroundBrush}"
+                                     BorderBrush="{DynamicResource InputBorderBrush}"
+                                     BorderThickness="1"
+                                     ToolTip="View and edit the full AI prompt text here"/>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- HORIZONTAL DRAGGABLE DIVIDER (~60% / 40% SPLIT) -->
+        <GridSplitter Grid.Row="2" Height="6" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                      Background="{DynamicResource ChatSplitterBrush}" ShowsPreview="False"
+                      ResizeDirection="Rows" Cursor="SizeNS">
+            <GridSplitter.Template>
+                <ControlTemplate TargetType="GridSplitter">
+                    <Border Background="{TemplateBinding Background}">
+                        <Border Width="56" Height="2" CornerRadius="1"
+                                Background="{DynamicResource ChatSplitterGripBrush}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </GridSplitter.Template>
+        </GridSplitter>
+
+        <!-- ROW 3: LOCAL AI & SWARMUI STUDIO GUI -->
+        <Border Grid.Row="3" Background="{DynamicResource ChatBackgroundBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/> <!-- Left: Chat Conversation & Antigravity Input -->
+                    <ColumnDefinition Width="280"/> <!-- Right: Dedicated AI & SwarmUI Control Panel -->
+                </Grid.ColumnDefinitions>
+
+                <!-- COLUMN 0: CHAT CONVERSATION & CENTERED ANTIGRAVITY INPUT BAR -->
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>  <!-- Conversation Scroll View -->
+                        <RowDefinition Height="Auto"/> <!-- Centered Antigravity-Style Input Bar -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Conversation Message List -->
+                    <ListBox x:Name="lstChatMessages" Grid.Row="0"
+                             ItemsSource="{Binding ChatMessages}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             Padding="16,10">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Focusable" Value="False"/>
+                                <Setter Property="IsHitTestVisible" Value="True"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Margin" Value="0,4"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,4">
+                                    <!-- User Message Bubble -->
+                                    <Border x:Name="bdrUser" HorizontalAlignment="Right" MaxWidth="760"
+                                            Background="{DynamicResource ChatBubbleUserBackgroundBrush}"
+                                            CornerRadius="14,14,2,14" Padding="14,10"
+                                            Visibility="{Binding IsUser, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="👤 You" FontWeight="Bold" FontSize="11.5" Foreground="#E0E7FF"/>
+                                                <TextBlock HorizontalAlignment="Right" Text="{Binding TimeFormatted}" FontSize="10.5" Foreground="#C7D2FE"/>
+                                            </DockPanel>
+                                            <TextBox Text="{Binding Content, Mode=OneWay}"
+                                                     IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                                     Foreground="{DynamicResource ChatBubbleUserForegroundBrush}"
+                                                     FontSize="13.5" TextWrapping="Wrap" CaretBrush="#FFFFFF"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Assistant Message Bubble -->
+                                    <Border x:Name="bdrAssistant" HorizontalAlignment="Left" MaxWidth="800"
+                                            Background="{DynamicResource ChatBubbleAssistantBackgroundBrush}"
+                                            BorderBrush="{DynamicResource ChatBubbleAssistantBorderBrush}"
+                                            BorderThickness="1" CornerRadius="14,14,14,2" Padding="14,10"
+                                            Visibility="{Binding IsAssistant, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel>
+                                            <!-- Assistant Header -->
+                                            <DockPanel Margin="0,0,0,6">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="🎨 " FontSize="12" Visibility="{Binding IsImageMessage, Converter={StaticResource BoolToVis}}"/>
+                                                    <TextBlock Text="🤖 " FontSize="12" Visibility="{Binding IsImageMessage, Converter={StaticResource InvertBoolToVis}}"/>
+                                                    <TextBlock Text="{Binding ModelName, FallbackValue='Prompter AI'}" FontWeight="Bold" FontSize="11.5"
+                                                               Foreground="{DynamicResource AccentPrimaryBrush}"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding TimeFormatted}" FontSize="10.5" Foreground="{DynamicResource TextSubtleBrush}"
+                                                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <Button Style="{StaticResource QuickCopyButton}" Content="📋 Copy Text"
+                                                            Padding="6,2" FontSize="10.5"
+                                                            Click="ChatCopyButton_Click" Tag="{Binding}"/>
+                                                </StackPanel>
+                                            </DockPanel>
+
+                                            <!-- IMAGE GENERATION CONTENT -->
+                                            <StackPanel Visibility="{Binding IsImageMessage, Converter={StaticResource BoolToVis}}">
+                                                <!-- Loading Throbber Overlay -->
+                                                <Border Background="{DynamicResource ChatThinkingBackgroundBrush}"
+                                                        BorderBrush="{DynamicResource ChatThinkingBorderBrush}"
+                                                        BorderThickness="1" CornerRadius="10" Padding="18,14" Margin="0,4,0,4"
+                                                        Visibility="{Binding IsImageLoading, Converter={StaticResource BoolToVis}}">
+                                                    <StackPanel HorizontalAlignment="Center">
+                                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                                                            <TextBlock Text="⏳" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="Generating Image in SwarmUI..." FontWeight="Bold" FontSize="13"
+                                                                       Foreground="{DynamicResource AccentPrimaryBrush}"/>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding ModelName, StringFormat='Model: {0}'}" FontSize="11.5"
+                                                                   Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                                        <Border Background="#1E293B" CornerRadius="6" Padding="10,4" HorizontalAlignment="Center">
+                                                            <TextBlock Text="{Binding ImageDimensions, StringFormat='Default Size: {0}  •  50 Steps  •  CFG 7.0'}"
+                                                                       FontSize="11" Foreground="#38BDF8" FontWeight="SemiBold"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- Completed Image Preview & Controls -->
+                                                <StackPanel Visibility="{Binding IsImageLoading, Converter={StaticResource InvertBoolToVis}}" Margin="0,4,0,0">
+                                                    <!-- Image Thumbnail -->
+                                                    <Border CornerRadius="8" ClipToBounds="True" MaxWidth="500" MaxHeight="380"
+                                                            HorizontalAlignment="Left" Background="#0F172A" BorderBrush="{DynamicResource BorderBrush}"
+                                                            BorderThickness="1" Margin="0,0,0,8" Cursor="Hand"
+                                                            ToolTip="Click to open full resolution image in viewer">
+                                                        <Image Source="{Binding ImagePath}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                        <Border.InputBindings>
+                                                            <MouseBinding MouseAction="LeftClick"
+                                                                          Command="{Binding DataContext.OpenImageFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                          CommandParameter="{Binding ImagePath}"/>
+                                                        </Border.InputBindings>
+                                                    </Border>
+
+                                                    <!-- Generation Details -->
+                                                    <TextBlock Text="{Binding Content}" Foreground="{DynamicResource ChatBubbleAssistantForegroundBrush}"
+                                                               FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                                    <!-- Action Buttons for Image -->
+                                                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                                        <Button Style="{StaticResource QuickCopyButton}" Content="🔍 Open Full Image"
+                                                                Margin="0,0,6,4" Click="OpenImage_Click" Tag="{Binding ImagePath}"/>
+                                                        <Button Style="{StaticResource QuickCopyButton}" Content="📋 Copy Image"
+                                                                Margin="0,0,6,4" Click="CopyImage_Click" Tag="{Binding ImagePath}"/>
+                                                        <Button Style="{StaticResource OutlineButton}" Content="📁 Show in Folder"
+                                                                Padding="6,2" FontSize="10.5" Margin="0,0,6,4" Click="ShowInFolder_Click" Tag="{Binding ImagePath}"/>
+                                                    </WrapPanel>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <!-- TEXT LLM CHAT CONTENT -->
+                                            <StackPanel Visibility="{Binding IsImageMessage, Converter={StaticResource InvertBoolToVis}}">
+                                                <!-- Thought Process Card for Reasoning Models -->
+                                                <Border Background="{DynamicResource ChatThinkingBackgroundBrush}"
+                                                        BorderBrush="{DynamicResource ChatThinkingBorderBrush}"
+                                                        BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8"
+                                                        Visibility="{Binding HasThinking, Converter={StaticResource BoolToVis}}">
+                                                    <StackPanel>
+                                                        <DockPanel Margin="0,0,0,4">
+                                                            <TextBlock Text="💭 Thought Process" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                                        </DockPanel>
+                                                        <TextBox Text="{Binding ThinkingContent, Mode=OneWay}"
+                                                                 IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                                                 Foreground="{DynamicResource ChatThinkingForegroundBrush}"
+                                                                 FontSize="12" FontStyle="Italic" TextWrapping="Wrap"
+                                                                 CaretBrush="{DynamicResource ChatThinkingForegroundBrush}"/>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- Message Content -->
+                                                <TextBox Text="{Binding Content, Mode=OneWay}"
+                                                         IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                                         Foreground="{DynamicResource ChatBubbleAssistantForegroundBrush}"
+                                                         FontSize="13.5" TextWrapping="Wrap"
+                                                         CaretBrush="{DynamicResource ChatBubbleAssistantForegroundBrush}"/>
+
+                                                <!-- Thinking / Streaming Indicator -->
+                                                <Border Visibility="{Binding IsGenerating, Converter={StaticResource BoolToVis}}" Margin="0,6,0,0">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="⚡ Generating local tokens..." FontStyle="Italic" FontSize="11.5"
+                                                                   Foreground="{DynamicResource AccentPrimaryBrush}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Error Message Bubble -->
+                                    <Border x:Name="bdrError" HorizontalAlignment="Left" MaxWidth="800"
+                                            Background="{DynamicResource DangerBackgroundBrush}"
+                                            BorderBrush="{DynamicResource DangerBorderBrush}"
+                                            BorderThickness="1" CornerRadius="8" Padding="12,8"
+                                            Visibility="{Binding IsError, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="{Binding Content}" Foreground="{DynamicResource DangerForegroundBrush}"
+                                                   FontSize="13" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- CENTERED ANTIGRAVITY-STYLE CHAT INPUT CONTAINER -->
+                    <Grid Grid.Row="1" Margin="16,4,16,14" MaxWidth="750" HorizontalAlignment="Stretch">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- Active Task Running Header Pill -->
+                            <RowDefinition Height="Auto"/> <!-- Rounded Input Card -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Task Running Strip (Antigravity Style: "1 task running") -->
+                        <Border Grid.Row="0" Background="#1E2025" BorderBrush="#2F333D" BorderThickness="1,1,1,0"
+                                CornerRadius="12,12,0,0" Padding="12,7" Margin="0,0,0,-1"
+                                Visibility="{Binding HasActiveTask, Converter={StaticResource BoolToVis}}">
+                            <DockPanel>
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                                    <TextBlock Text="⚡ 1 task running" FontWeight="Bold" FontSize="11.5" Foreground="#94A3B8" Margin="0,0,10,0"/>
+                                    <TextBlock Text="⏳" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding ActiveTaskStatus}" FontSize="11.5" Foreground="#E2E8F0"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="480" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Style="{StaticResource QuickDeleteButton}" HorizontalAlignment="Right"
+                                        Command="{Binding StopGenerationCommand}" Content="⏹ Stop" Padding="8,2" FontSize="10.5"/>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Rounded Input Box Card -->
+                        <Border Grid.Row="1" Background="{DynamicResource ChatInputBackgroundBrush}"
+                                BorderBrush="{DynamicResource ChatInputBorderBrush}" BorderThickness="1"
+                                CornerRadius="14" Padding="14,10,14,10">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Text Input Area -->
+                                <Grid Grid.Row="0" MinHeight="42">
+                                    <TextBox x:Name="txtChatInput"
+                                             Text="{Binding ChatInputText, UpdateSourceTrigger=PropertyChanged}"
+                                             Background="Transparent"
+                                             Foreground="{DynamicResource ChatInputForegroundBrush}"
+                                             BorderThickness="0"
+                                             FontSize="13.5"
+                                             AcceptsReturn="True"
+                                             MaxHeight="120"
+                                             VerticalScrollBarVisibility="Auto"
+                                             PreviewKeyDown="TxtChatInput_PreviewKeyDown"
+                                             CaretBrush="{DynamicResource ChatInputForegroundBrush}"/>
+
+                                    <!-- Watermark Placeholder -->
+                                    <TextBlock Text="{Binding InputPlaceholderText}"
+                                               Foreground="{DynamicResource TextSubtleBrush}" FontSize="13"
+                                               VerticalAlignment="Top" Margin="4,2,0,0" IsHitTestVisible="False">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=txtChatInput}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+
+                                <!-- Bottom Control Bar inside the Pill -->
+                                <DockPanel Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center">
+                                    <!-- Left: Insert Active Prompt + Mode/Model Switcher Pill -->
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                                        <!-- Active Prompt Inserter -->
+                                        <Button Style="{StaticResource QuickCopyButton}" Margin="0,0,8,0" Padding="8,4"
+                                                Command="{Binding InsertActivePromptCommand}"
+                                                ToolTip="Insert the prompt selected in manager above into chat input">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="➕" FontSize="11" Margin="0,0,4,0"/>
+                                                <TextBlock Text="Active Prompt" FontSize="11.5"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Mode & Model Switcher Pill -->
+                                        <Button Style="{StaticResource OutlineButton}" Padding="8,4" Height="26"
+                                                Command="{Binding ToggleModeCommand}"
+                                                ToolTip="Click to toggle between Chat LLM and SwarmUI Image mode">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ActiveModeIcon}" FontSize="11.5" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding ActiveModelDisplayName}" FontSize="11.5" FontWeight="SemiBold"
+                                                           MaxWidth="340" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text=" ⬍" FontSize="10" Foreground="{DynamicResource TextSubtleBrush}" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+
+                                    <!-- Right: Circular Send / Stop Button -->
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <!-- Circular Send Button -->
+                                        <Button Style="{StaticResource ModernButton}" Width="32" Height="32" Padding="0"
+                                                Command="{Binding SendChatMessageCommand}"
+                                                Visibility="{Binding IsChatGenerating, Converter={StaticResource InvertBoolToVis}}"
+                                                ToolTip="Send prompt (Enter)">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="roundBdr" Background="{DynamicResource AccentPrimaryBrush}" CornerRadius="16">
+                                                        <TextBlock Text="➔" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="1,0,0,0"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="roundBdr" Property="Opacity" Value="0.85"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsPressed" Value="True">
+                                                            <Setter TargetName="roundBdr" Property="Opacity" Value="0.7"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter TargetName="roundBdr" Property="Opacity" Value="0.4"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+
+                                        <!-- Circular Stop Button -->
+                                        <Button Style="{StaticResource DangerOutlineButton}" Width="32" Height="32" Padding="0"
+                                                Command="{Binding StopGenerationCommand}"
+                                                Visibility="{Binding IsChatGenerating, Converter={StaticResource BoolToVis}}"
+                                                ToolTip="Stop generation immediately">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="roundBdr" Background="{DynamicResource DangerBackgroundBrush}" CornerRadius="16">
+                                                        <TextBlock Text="⏹" FontSize="12" Foreground="{DynamicResource DangerForegroundBrush}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="roundBdr" Property="Opacity" Value="0.85"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- COLUMN 1: DEDICATED STUDIO & SERVICE STATUS PANEL (Per user screenshot red box) -->
+                <Border Grid.Column="1" Background="{DynamicResource ChatHeaderBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0" Padding="14,12">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <!-- Panel Title -->
+                            <DockPanel Margin="0,0,0,12">
+                                <TextBlock Text="⚡ STUDIO &amp; STATUS" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <Button Style="{StaticResource QuickCopyButton}" HorizontalAlignment="Right" Padding="6,2"
+                                        Command="{Binding ClearChatCommand}" ToolTip="Clear conversation history">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🧹" FontSize="10" Margin="0,0,3,0"/>
+                                        <TextBlock Text="Clear" FontSize="10.5"/>
+                                    </StackPanel>
+                                </Button>
+                            </DockPanel>
+
+                            <!-- Mode Selector Pills: Chat (Ollama) vs Image (SwarmUI) -->
+                            <Border Background="{DynamicResource InputBackgroundBrush}" CornerRadius="8" Padding="3" Margin="0,0,0,14"
+                                    BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Chat Mode Button -->
+                                    <Button Grid.Column="0" Command="{Binding SwitchToChatModeCommand}" Height="28" Padding="0"
+                                            ToolTip="Switch to local LLM text chat (Ollama)">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsChatMode}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}"/>
+                                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="💬" FontSize="11" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Chat" FontSize="12"/>
+                                        </StackPanel>
+                                    </Button>
+
+                                    <!-- Image Mode Button -->
+                                    <Button Grid.Column="1" Command="{Binding SwitchToImageModeCommand}" Height="28" Padding="0"
+                                            ToolTip="Switch to SwarmUI image generation">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsImageMode}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}"/>
+                                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="🎨" FontSize="11" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Image" FontSize="12"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </Border>
+
+                            <!-- Active Model Section -->
+                            <TextBlock Text="ACTIVE MODEL" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextSubtleBrush}" Margin="0,0,0,5"/>
+
+                            <!-- Text Model Selector (Visible in Chat Mode) -->
+                            <StackPanel Visibility="{Binding IsChatMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
+                                <ComboBox ItemsSource="{Binding AvailableChatModels}"
+                                          SelectedItem="{Binding SelectedChatModel, Mode=TwoWay}"
+                                          Height="30" VerticalContentAlignment="Center" Margin="0,0,0,6">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="6" Padding="8,5"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                    <TextBlock Text="{Binding SelectedChatModel.DetailsBadge, FallbackValue='No chat model selected'}"
+                                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Image Model Selector (Visible in Image Mode) -->
+                            <StackPanel Visibility="{Binding IsImageMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
+                                <ComboBox ItemsSource="{Binding AvailableImageModels}"
+                                          SelectedItem="{Binding SelectedImageModel, Mode=TwoWay}"
+                                          Height="30" VerticalContentAlignment="Center" Margin="0,0,0,6">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="6" Padding="8,5"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding SelectedImageModel.Name, FallbackValue='No image model selected'}"
+                                                   FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource WindowForegroundBrush}"
+                                                   TextTrimming="CharacterEllipsis" Margin="0,0,0,2"/>
+                                        <TextBlock Text="{Binding SelectedImageModel.DetailsBadge, FallbackValue='50 steps • CFG 7 • Default resolution'}"
+                                                   FontSize="10.5" Foreground="#38BDF8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Services Status Section -->
+                            <TextBlock Text="SERVICES" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextSubtleBrush}" Margin="0,6,0,6"/>
+
+                            <!-- Ollama Service Card -->
+                            <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="8" Padding="10,8" Margin="0,0,0,8"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,4">
+                                        <TextBlock Text="🦙 Ollama" FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource WindowForegroundBrush}"/>
+                                        <Button Style="{StaticResource QuickCopyButton}" Content="Start" Padding="6,1" FontSize="10"
+                                                HorizontalAlignment="Right" Command="{Binding StartOllamaCommand}"
+                                                Visibility="{Binding IsOllamaConnected, Converter={StaticResource InvertBoolToVis}}"/>
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding OllamaStatusText}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- SwarmUI Service Card -->
+                            <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="8" Padding="10,8" Margin="0,0,0,12"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,4">
+                                        <TextBlock Text="🎨 SwarmUI" FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource WindowForegroundBrush}"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Style="{StaticResource QuickCopyButton}" Content="Start" Padding="6,1" FontSize="10"
+                                                    Margin="0,0,6,0" Command="{Binding StartSwarmCommand}"
+                                                    Visibility="{Binding IsSwarmConnected, Converter={StaticResource InvertBoolToVis}}"
+                                                    ToolTip="Start SwarmUI server process (launches detected launch-windows.bat)"/>
+                                            <TextBlock Text="localhost:7801" FontSize="10" Foreground="{DynamicResource TextSubtleBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding SwarmStatusText}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Action Buttons -->
+                            <TextBlock Text="ACTIONS" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextSubtleBrush}" Margin="0,0,0,6"/>
+                            <StackPanel>
+                                <Button Style="{StaticResource OutlineButton}" Height="30" Padding="8,0" Margin="0,0,0,6"
+                                        Command="{Binding ScanModelsCommand}"
+                                        ToolTip="Scan Ollama models and SwarmUI models in X:\SwarmUI\Models\Stable-Diffusion">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                        <TextBlock Text="🔄" FontSize="11" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Scan All Models" FontSize="11.5"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Style="{StaticResource OutlineButton}" Height="30" Padding="8,0" Margin="0,0,0,6"
+                                        Command="{Binding AddModelCommand}"
+                                        ToolTip="Pull models from Ollama or register local GGUF models">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                        <TextBlock Text="➕" FontSize="11" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Add LLM Model" FontSize="11.5"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Style="{StaticResource OutlineButton}" Height="30" Padding="8,0" Margin="0,0,0,6"
+                                        Command="{Binding OpenSwarmOutputsCommand}"
+                                        ToolTip="Open SwarmUI generated image output directory (X:\SwarmUI\Output)">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                        <TextBlock Text="📁" FontSize="11" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Open Swarm Outputs" FontSize="11.5"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- FLOATING STATUS / TOAST NOTIFICATION -->
+        <Border Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="0,0,24,24" Background="{DynamicResource ToastBackgroundBrush}" CornerRadius="8" Padding="16,10"
+                BorderBrush="{DynamicResource ToastBorderBrush}" BorderThickness="1"
+                Visibility="{Binding IsStatusVisible, Converter={StaticResource BoolToVis}}">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="12" ShadowDepth="4" Opacity="0.3"/>
+            </Border.Effect>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#FFFFFF" FontWeight="SemiBold" FontSize="13"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

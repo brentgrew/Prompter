@@ -1,0 +1,28 @@
+## Visual Studio & .NET Build Artifacts
+[Bb]in/
+[Oo]bj/
+TestResults/
+[Tt]est[Rr]esults/
+.vs/
+*.user
+*.suo
+*.userprefs
+*.pidb
+*.booproj
+*.sln.docstates
+
+## Publish and staging outputs
+Publish/
+publish/
+
+## Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+## Logs and diagnostics
+*.log
+*.crash
+scratch/

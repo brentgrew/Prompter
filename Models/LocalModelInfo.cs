@@ -1,0 +1,152 @@
+using System;
+
+namespace Prompter.Models
+{
+    public class LocalModelInfo
+    {
+        public string Name { get; set; } = string.Empty;
+        public string ModelId { get; set; } = string.Empty;
+        public string Family { get; set; } = string.Empty;
+        public string ParameterSize { get; set; } = string.Empty;
+        public string Quantization { get; set; } = string.Empty;
+        public string Source { get; set; } = "Ollama";
+        public string? FilePath { get; set; }
+        public long SizeBytes { get; set; }
+
+        public bool IsImageModel { get; set; }
+        public int StandardWidth { get; set; } = 1024;
+        public int StandardHeight { get; set; } = 1024;
+
+        public bool IsSdxl =>
+            IsImageModel && (
+                Name.Contains("sdxl", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("pony", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("xl", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsSd15 =>
+            IsImageModel && (
+                Name.Contains("1.5", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("dreamshaper", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("v1", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsGemma =>
+            !IsImageModel && (
+                Name.Contains("gemma", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("gemma", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsQwen =>
+            !IsImageModel && (
+                Name.Contains("qwen", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("qwen", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("qwythos", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("qwythos", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsLlama =>
+            !IsImageModel && (
+                Name.Contains("llama", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("llama", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsDeepSeek =>
+            !IsImageModel && (
+                Name.Contains("deepseek", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("deepseek", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsMistral =>
+            !IsImageModel && (
+                Name.Contains("mistral", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("mistral", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("mixtral", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("mixtral", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("codestral", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsPhi =>
+            !IsImageModel && (
+                Name.Contains("phi", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("phi", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsGlm =>
+            !IsImageModel && (
+                Name.Contains("glm", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("glm", StringComparison.OrdinalIgnoreCase));
+
+        public string FamilyName
+        {
+            get
+            {
+                if (IsImageModel)
+                {
+                    if (IsSdxl) return "SDXL";
+                    if (IsSd15) return "SD 1.5";
+                    return "Stable Diffusion";
+                }
+                if (IsGemma) return "Gemma";
+                if (IsQwen) return "Qwen";
+                if (IsLlama) return "Llama";
+                if (IsDeepSeek) return "DeepSeek";
+                if (IsMistral) return "Mistral";
+                if (IsGlm) return "GLM";
+                if (IsPhi) return "Phi";
+                if (!string.IsNullOrEmpty(Family)) return Family;
+                return "Local";
+            }
+        }
+
+        public string FamilyPrefix
+        {
+            get
+            {
+                if (IsImageModel)
+                {
+                    if (IsSdxl) return "🎨 [SDXL] ";
+                    if (IsSd15) return "🎨 [SD 1.5] ";
+                    return "🎨 [Image] ";
+                }
+                if (IsGemma) return "💎 [Gemma] ";
+                if (IsQwen) return "⭐ [Qwen] ";
+                if (IsLlama) return "🦙 [Llama] ";
+                if (IsDeepSeek) return "🐋 [DeepSeek] ";
+                if (IsMistral) return "🌪️ [Mistral] ";
+                if (IsGlm) return "🌐 [GLM] ";
+                if (IsPhi) return "🔬 [Phi] ";
+                return "🤖 ";
+            }
+        }
+
+        public string DisplayName
+        {
+            get
+            {
+                if (IsImageModel)
+                {
+                    return $"{FamilyPrefix}{Name} ({StandardWidth}×{StandardHeight})";
+                }
+                var details = !string.IsNullOrEmpty(ParameterSize) ? $" ({ParameterSize})" : "";
+                return $"{FamilyPrefix}{Name}{details}";
+            }
+        }
+
+        public string DetailsBadge
+        {
+            get
+            {
+                var parts = new System.Collections.Generic.List<string>();
+                parts.Add(FamilyName);
+                if (IsImageModel)
+                {
+                    parts.Add($"{StandardWidth}×{StandardHeight}");
+                    parts.Add("50 steps");
+                    parts.Add("CFG 7");
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(ParameterSize)) parts.Add(ParameterSize);
+                    if (!string.IsNullOrEmpty(Quantization)) parts.Add(Quantization);
+                }
+                if (!string.IsNullOrEmpty(Source)) parts.Add(Source);
+                return string.Join(" • ", parts);
+            }
+        }
+
+        public override string ToString() => DisplayName;
+    }
+}
