@@ -816,5 +816,32 @@ namespace Prompter.Tests
             vm.CopyTextToClipboard("", "Should not show");
             Assert.AreEqual("✓ Prompt copied to clipboard!", vm.StatusMessage);
         }
+
+        [TestMethod]
+        public void TestCleanPromptStripsPrefixesAndQuotes()
+        {
+            var raw1 = "\"**Prompt:** A medium shot of an attractive young woman\"";
+            var clean1 = MainViewModel.CleanPrompt(raw1);
+            Assert.AreEqual("A medium shot of an attractive young woman", clean1);
+
+            var raw2 = "**Prompt:** A cinematic render of a futuristic skyline";
+            var clean2 = MainViewModel.CleanPrompt(raw2);
+            Assert.AreEqual("A cinematic render of a futuristic skyline", clean2);
+
+            var raw3 = "**Image Prompt:** \"Hyperrealistic oil painting of an owl\"";
+            var clean3 = MainViewModel.CleanPrompt(raw3);
+            Assert.AreEqual("Hyperrealistic oil painting of an owl", clean3);
+
+            var raw4 = "Prompt: A lush green forest with sunbeams";
+            var clean4 = MainViewModel.CleanPrompt(raw4);
+            Assert.AreEqual("A lush green forest with sunbeams", clean4);
+
+            var raw5 = "A pure prompt without any prefix";
+            var clean5 = MainViewModel.CleanPrompt(raw5);
+            Assert.AreEqual("A pure prompt without any prefix", clean5);
+
+            Assert.AreEqual(string.Empty, MainViewModel.CleanPrompt(null));
+            Assert.AreEqual(string.Empty, MainViewModel.CleanPrompt("   "));
+        }
     }
 }

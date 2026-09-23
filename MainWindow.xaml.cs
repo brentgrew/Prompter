@@ -241,10 +241,11 @@ namespace Prompter
         {
             if (sender is FrameworkElement elem && elem.Tag is ChatMessage message)
             {
-                var prompt = !string.IsNullOrWhiteSpace(message.ImagePrompt)
+                var rawPrompt = !string.IsNullOrWhiteSpace(message.ImagePrompt)
                     ? message.ImagePrompt
-                    : message.Content.Replace("Prompt: \"", "").TrimEnd('\"');
+                    : message.Content;
 
+                var prompt = MainViewModel.CleanPrompt(rawPrompt);
                 if (!string.IsNullOrWhiteSpace(prompt))
                 {
                     ViewModel.TriggerImageRegeneration(prompt);

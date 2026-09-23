@@ -889,8 +889,10 @@ namespace Prompter.ViewModels
                     SwarmStatusText = $"🟢 SwarmUI Online ({AvailableImageModels.Count} models)";
                 }
 
+                var cleanText = CleanPrompt(text);
+
                 // Add user message to conversation
-                var userMsg = new ChatMessage("User", text);
+                var userMsg = new ChatMessage("User", cleanText);
                 ChatMessages.Add(userMsg);
                 ChatInputText = string.Empty;
 
@@ -899,7 +901,7 @@ namespace Prompter.ViewModels
                 {
                     IsImageMessage = true,
                     IsImageLoading = true,
-                    ImagePrompt = text,
+                    ImagePrompt = cleanText,
                     ImageDimensions = $"{SelectedImageModel.StandardWidth}×{SelectedImageModel.StandardHeight}",
                     ImageSteps = 50,
                     ImageCfg = 7.0
@@ -912,7 +914,7 @@ namespace Prompter.ViewModels
 
                 try
                 {
-                    var result = await _swarmUiService.GenerateImageAsync(text, SelectedImageModel, _chatCts.Token);
+                    var result = await _swarmUiService.GenerateImageAsync(cleanText, SelectedImageModel, _chatCts.Token);
                     Application.Current?.Dispatcher.Invoke(() =>
                     {
                         assistantMsg.IsImageLoading = false;
@@ -920,11 +922,11 @@ namespace Prompter.ViewModels
                         {
                             assistantMsg.ImagePath = result.ImagePath;
                             assistantMsg.ImageUrl = result.ImageUrl;
-                            assistantMsg.ImagePrompt = text;
+                            assistantMsg.ImagePrompt = cleanText;
                             assistantMsg.ImageDimensions = $"{result.Width}×{result.Height}";
                             assistantMsg.ImageSteps = result.Steps;
                             assistantMsg.ImageCfg = result.Cfg;
-                            assistantMsg.Content = $"Prompt: \"{text}\"";
+                            assistantMsg.Content = cleanText;
                             ShowStatus("✓ SwarmUI image generated successfully!");
                         }
                         else
@@ -1066,8 +1068,11 @@ namespace Prompter.ViewModels
                 return;
             }
 
+            var clean = CleanPrompt(prompt);
+            if (string.IsNullOrWhiteSpace(clean)) return;
+
             ActiveMode = "Image";
-            ChatInputText = prompt;
+            ChatInputText = clean;
             ExecuteSendChatMessage();
         }
 
@@ -1100,13 +1105,14 @@ namespace Prompter.ViewModels
         {
             if (SelectedPrompt != null && !string.IsNullOrWhiteSpace(SelectedPrompt.Content))
             {
+                var clean = CleanPrompt(SelectedPrompt.Content);
                 if (string.IsNullOrWhiteSpace(ChatInputText))
                 {
-                    ChatInputText = SelectedPrompt.Content;
+                    ChatInputText = clean;
                 }
                 else
                 {
-                    ChatInputText += "\n\n" + SelectedPrompt.Content;
+                    ChatInputText += "\n\n" + clean;
                 }
                 ShowStatus($"✓ Inserted prompt \"{SelectedPrompt.DisplayTitle}\" into chat input!");
             }
@@ -1213,8 +1219,76 @@ namespace Prompter.ViewModels
         public void LoadPromptForEditing(string text)
         {
             if (string.IsNullOrEmpty(text)) return;
-            ChatInputText = text;
+            var clean = CleanPrompt(text);
+            ChatInputText = clean;
             ShowStatus("✏️ Prompt loaded into editor");
+        }
+
+        public static string CleanPrompt(string? prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt)) return string.Empty;
+            var trimmed = prompt.Trim();
+
+            // Strip markdown code fences if wrapped in ``` ... ```
+            if (trimmed.StartsWith("```") && trimmed.EndsWith("```") && trimmed.Length > 6)
+            {
+                var firstLineEnd = trimmed.IndexOfAny(new[] { '\r', '\n' });
+                var lastLineStart = trimmed.LastIndexOfAny(new[] { '\r', '\n' });
+                if (firstLineEnd > 0 && lastLineStart > firstLineEnd)
+                {
+                    trimmed = trimmed.Substring(firstLineEnd, lastLineStart - firstLineEnd).Trim();
+                }
+            }
+
+            string[] prefixes = new[]
+            {
+                "**prompt:**",
+                "**prompt**:",
+                "**prompt** -",
+                "**prompt**-",
+                "**image prompt:**",
+                "**image prompt**:",
+                "image prompt:",
+                "positive prompt:",
+                "**positive prompt:**",
+                "prompt:",
+                "prompt -"
+            };
+
+            bool stripped = true;
+            while (stripped)
+            {
+                stripped = false;
+
+                // Strip wrapping double or single quotes
+                if ((trimmed.StartsWith("\"") && trimmed.EndsWith("\"") && trimmed.Length >= 2) ||
+                    (trimmed.StartsWith("“") && trimmed.EndsWith("”") && trimmed.Length >= 2) ||
+                    (trimmed.StartsWith("'") && trimmed.EndsWith("'") && trimmed.Length >= 2))
+                {
+                    trimmed = trimmed.Substring(1, trimmed.Length - 2).Trim();
+                    stripped = true;
+                }
+
+                var lower = trimmed.ToLowerInvariant();
+                foreach (var prefix in prefixes)
+                {
+                    if (lower.StartsWith(prefix))
+                    {
+                        trimmed = trimmed.Substring(prefix.Length).Trim();
+                        stripped = true;
+                        break;
+                    }
+                }
+            }
+
+            // Final check for wrapping quotes
+            if ((trimmed.StartsWith("\"") && trimmed.EndsWith("\"") && trimmed.Length >= 2) ||
+                (trimmed.StartsWith("“") && trimmed.EndsWith("”") && trimmed.Length >= 2))
+            {
+                trimmed = trimmed.Substring(1, trimmed.Length - 2).Trim();
+            }
+
+            return trimmed;
         }
 
         private void ExecuteStartSwarm()
