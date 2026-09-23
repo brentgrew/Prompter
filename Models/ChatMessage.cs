@@ -14,6 +14,7 @@ namespace Prompter.Models
         private bool _isImageMessage;
         private string? _imagePath;
         private string? _imageUrl;
+        private string? _imagePrompt;
         private bool _isImageLoading;
         private string? _imageDimensions;
         private int _imageSteps = 50;
@@ -60,6 +61,19 @@ namespace Prompter.Models
                 if (_imageUrl != value)
                 {
                     _imageUrl = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string? ImagePrompt
+        {
+            get => _imagePrompt;
+            set
+            {
+                if (_imagePrompt != value)
+                {
+                    _imagePrompt = value;
                     OnPropertyChanged();
                 }
             }

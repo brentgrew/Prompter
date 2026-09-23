@@ -714,6 +714,8 @@
                              Background="Transparent" BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.CanContentScroll="False"
+                             VirtualizingPanel.ScrollUnit="Pixel"
                              Padding="16,10">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
@@ -765,7 +767,7 @@
                                                     <TextBlock Text="🎨 " FontSize="12" Visibility="{Binding IsImageMessage, Converter={StaticResource BoolToVis}}"/>
                                                     <TextBlock Text="🤖 " FontSize="12" Visibility="{Binding IsImageMessage, Converter={StaticResource InvertBoolToVis}}"/>
                                                     <TextBlock Text="{Binding ModelName, FallbackValue='Prompter AI'}" FontWeight="Bold" FontSize="11.5"
-                                                               Foreground="{DynamicResource AccentPrimaryBrush}"/>
+                                                                Foreground="{DynamicResource AccentPrimaryBrush}"/>
                                                 </StackPanel>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding TimeFormatted}" FontSize="10.5" Foreground="{DynamicResource TextSubtleBrush}"
@@ -790,41 +792,43 @@
                                                                        Foreground="{DynamicResource AccentPrimaryBrush}"/>
                                                         </StackPanel>
                                                         <TextBlock Text="{Binding ModelName, StringFormat='Model: {0}'}" FontSize="11.5"
-                                                                   Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,0,0,6"/>
-                                                        <Border Background="#1E293B" CornerRadius="6" Padding="10,4" HorizontalAlignment="Center">
-                                                            <TextBlock Text="{Binding ImageDimensions, StringFormat='Default Size: {0}  •  50 Steps  •  CFG 7.0'}"
-                                                                       FontSize="11" Foreground="#38BDF8" FontWeight="SemiBold"/>
-                                                        </Border>
+                                                                   Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
                                                     </StackPanel>
                                                 </Border>
 
                                                 <!-- Completed Image Preview & Controls -->
                                                 <StackPanel Visibility="{Binding IsImageLoading, Converter={StaticResource InvertBoolToVis}}" Margin="0,4,0,0">
-                                                    <!-- Image Thumbnail -->
-                                                    <Border CornerRadius="8" ClipToBounds="True" MaxWidth="500" MaxHeight="380"
+                                                    <!-- Image Preview (Full image visible, aspect ratio preserved, not cut off) -->
+                                                    <Border CornerRadius="8" MaxWidth="620"
                                                             HorizontalAlignment="Left" Background="#0F172A" BorderBrush="{DynamicResource BorderBrush}"
                                                             BorderThickness="1" Margin="0,0,0,8" Cursor="Hand"
+                                                            MouseLeftButtonUp="ImagePreview_Click"
                                                             ToolTip="Click to open full resolution image in viewer">
-                                                        <Image Source="{Binding ImagePath}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                                        <Border.InputBindings>
-                                                            <MouseBinding MouseAction="LeftClick"
-                                                                          Command="{Binding DataContext.OpenImageFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                          CommandParameter="{Binding ImagePath}"/>
-                                                        </Border.InputBindings>
+                                                        <Image Source="{Binding ImagePath}" Stretch="Uniform" StretchDirection="DownOnly"
+                                                               RenderOptions.BitmapScalingMode="HighQuality"/>
                                                     </Border>
 
-                                                    <!-- Generation Details -->
+                                                    <!-- Prompt Details -->
                                                     <TextBlock Text="{Binding Content}" Foreground="{DynamicResource ChatBubbleAssistantForegroundBrush}"
                                                                FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
-                                                    <!-- Action Buttons for Image -->
+                                                    <!-- Action Buttons for Image Preview -->
                                                     <WrapPanel Orientation="Horizontal" Margin="0,0,0,2">
-                                                        <Button Style="{StaticResource QuickCopyButton}" Content="🔍 Open Full Image"
-                                                                Margin="0,0,6,4" Click="OpenImage_Click" Tag="{Binding ImagePath}"/>
+                                                        <Button Style="{StaticResource QuickCopyButton}" Content="🔄 Regenerate"
+                                                                Margin="0,0,6,4" Click="RegenerateImage_Click" Tag="{Binding}"
+                                                                ToolTip="Regenerate with the same prompt"/>
+                                                        <Button Style="{StaticResource OutlineButton}" Content="📁 Open in Folder"
+                                                                Padding="6,2" FontSize="10.5" Margin="0,0,6,4" Click="ShowInFolder_Click" Tag="{Binding ImagePath}"
+                                                                ToolTip="Open containing folder and select file in Explorer"/>
                                                         <Button Style="{StaticResource QuickCopyButton}" Content="📋 Copy Image"
-                                                                Margin="0,0,6,4" Click="CopyImage_Click" Tag="{Binding ImagePath}"/>
-                                                        <Button Style="{StaticResource OutlineButton}" Content="📁 Show in Folder"
-                                                                Padding="6,2" FontSize="10.5" Margin="0,0,6,4" Click="ShowInFolder_Click" Tag="{Binding ImagePath}"/>
+                                                                Margin="0,0,6,4" Click="CopyImage_Click" Tag="{Binding ImagePath}"
+                                                                ToolTip="Copy image bitmap to clipboard"/>
+                                                        <Button Style="{StaticResource OutlineButton}" Content="🔍 Full View"
+                                                                Padding="6,2" FontSize="10.5" Margin="0,0,6,4" Click="OpenImage_Click" Tag="{Binding ImagePath}"
+                                                                ToolTip="Open in default image viewer"/>
+                                                        <Button Style="{StaticResource QuickDeleteButton}" Content="🗑️ Delete"
+                                                                Margin="0,0,6,4" Click="DeleteImage_Click" Tag="{Binding}"
+                                                                ToolTip="Delete this image and remove from chat"/>
                                                     </WrapPanel>
                                                 </StackPanel>
                                             </StackPanel>
@@ -1133,7 +1137,7 @@
                                         <TextBlock Text="{Binding SelectedImageModel.Name, FallbackValue='No image model selected'}"
                                                    FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource WindowForegroundBrush}"
                                                    TextTrimming="CharacterEllipsis" Margin="0,0,0,2"/>
-                                        <TextBlock Text="{Binding SelectedImageModel.DetailsBadge, FallbackValue='50 steps • CFG 7 • Default resolution'}"
+                                        <TextBlock Text="{Binding SelectedImageModel.DetailsBadge, FallbackValue='SwarmUI Image Model'}"
                                                    FontSize="10.5" Foreground="#38BDF8" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>

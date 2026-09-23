@@ -600,9 +600,10 @@ namespace Prompter.Tests
             Assert.IsFalse(sdxl.IsSd15);
             Assert.AreEqual("SDXL", sdxl.FamilyName);
             Assert.Contains("🎨 [SDXL]", sdxl.DisplayName);
-            Assert.Contains("1024×1024", sdxl.DisplayName);
-            Assert.Contains("50 steps", sdxl.DetailsBadge);
-            Assert.Contains("CFG 7", sdxl.DetailsBadge);
+            Assert.IsFalse(sdxl.DisplayName.Contains("1024×1024"));
+            Assert.IsFalse(sdxl.DetailsBadge.Contains("50 steps"));
+            Assert.IsFalse(sdxl.DetailsBadge.Contains("CFG 7"));
+            Assert.IsFalse(sdxl.DetailsBadge.Contains("1024×1024"));
 
             var sd15 = new LocalModelInfo
             {
@@ -616,8 +617,38 @@ namespace Prompter.Tests
             Assert.IsFalse(sd15.IsSdxl);
             Assert.AreEqual("SD 1.5", sd15.FamilyName);
             Assert.Contains("🎨 [SD 1.5]", sd15.DisplayName);
-            Assert.Contains("512×512", sd15.DisplayName);
-            Assert.Contains("50 steps", sd15.DetailsBadge);
+            Assert.IsFalse(sd15.DisplayName.Contains("512×512"));
+            Assert.IsFalse(sd15.DetailsBadge.Contains("50 steps"));
+        }
+
+        [TestMethod]
+        public void TestVideoModelsAreIdentifiedAndExcluded()
+        {
+            var wanGguf = "wan22EnhancedNSFWSViCamera_nolightningSVICfQ8H.gguf";
+            var wanSafe = "wan22RemixT2VI2V_i2vLowV30.safetensors";
+            var standardSdxl = "SDXL 1.0.safetensors";
+
+            Assert.IsTrue(SwarmUiService.IsVideoModelName(wanGguf));
+            Assert.IsTrue(SwarmUiService.IsVideoModelName(wanSafe));
+            Assert.IsFalse(SwarmUiService.IsVideoModelName(standardSdxl));
+
+            var wanModelInfo = new LocalModelInfo { Name = wanSafe };
+            Assert.IsTrue(wanModelInfo.IsVideoModel);
+
+            var sdxlModelInfo = new LocalModelInfo { Name = standardSdxl };
+            Assert.IsFalse(sdxlModelInfo.IsVideoModel);
+        }
+
+        [TestMethod]
+        public void TestChatMessageImagePromptProperty()
+        {
+            var msg = new ChatMessage("Assistant", "Prompt: \"Cyberpunk cityscape\"")
+            {
+                IsImageMessage = true,
+                ImagePrompt = "Cyberpunk cityscape"
+            };
+
+            Assert.AreEqual("Cyberpunk cityscape", msg.ImagePrompt);
         }
 
         [TestMethod]

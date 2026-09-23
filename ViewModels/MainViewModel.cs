@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -341,7 +342,7 @@ namespace Prompter.ViewModels
         public bool HasActiveTask => !string.IsNullOrWhiteSpace(_activeTaskStatus) || IsChatGenerating;
 
         public string InputPlaceholderText => IsImageMode
-            ? "Describe image prompt for SwarmUI (50 steps, CFG 7, model default size)..."
+            ? "Describe image prompt for SwarmUI... (Enter to generate)"
             : "Ask local AI, prompt for image, or use active prompt... (Enter to send, Shift+Enter for new line)";
 
         public string OllamaStatusText
@@ -870,6 +871,7 @@ namespace Prompter.ViewModels
                 {
                     IsImageMessage = true,
                     IsImageLoading = true,
+                    ImagePrompt = text,
                     ImageDimensions = $"{SelectedImageModel.StandardWidth}×{SelectedImageModel.StandardHeight}",
                     ImageSteps = 50,
                     ImageCfg = 7.0
@@ -877,7 +879,7 @@ namespace Prompter.ViewModels
                 ChatMessages.Add(assistantMsg);
 
                 IsChatGenerating = true;
-                ActiveTaskStatus = $"Generating image with {SelectedImageModel.Name} (50 steps, CFG 7, {SelectedImageModel.StandardWidth}×{SelectedImageModel.StandardHeight})...";
+                ActiveTaskStatus = $"Generating image with {SelectedImageModel.Name}...";
                 _chatCts = new CancellationTokenSource();
 
                 try
@@ -890,10 +892,11 @@ namespace Prompter.ViewModels
                         {
                             assistantMsg.ImagePath = result.ImagePath;
                             assistantMsg.ImageUrl = result.ImageUrl;
+                            assistantMsg.ImagePrompt = text;
                             assistantMsg.ImageDimensions = $"{result.Width}×{result.Height}";
                             assistantMsg.ImageSteps = result.Steps;
                             assistantMsg.ImageCfg = result.Cfg;
-                            assistantMsg.Content = $"Prompt: \"{text}\"\n🎨 Model: {result.ModelName} | 📐 {result.Width}×{result.Height} | ⚡ 50 steps | 🎛️ CFG 7";
+                            assistantMsg.Content = $"Prompt: \"{text}\"";
                             ShowStatus("✓ SwarmUI image generated successfully!");
                         }
                         else
@@ -1024,6 +1027,39 @@ namespace Prompter.ViewModels
         private void ExecuteStopGeneration()
         {
             _chatCts?.Cancel();
+        }
+
+        public void TriggerImageRegeneration(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt)) return;
+            if (IsChatGenerating)
+            {
+                ShowStatus("⚠️ A generation task is already running. Please wait or stop it first.");
+                return;
+            }
+
+            ActiveMode = "Image";
+            ChatInputText = prompt;
+            ExecuteSendChatMessage();
+        }
+
+        public void DeleteChatMessage(ChatMessage msg)
+        {
+            if (msg == null) return;
+            try
+            {
+                if (msg.IsImageMessage && !string.IsNullOrEmpty(msg.ImagePath) && File.Exists(msg.ImagePath))
+                {
+                    File.Delete(msg.ImagePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to delete image: {ex.Message}");
+            }
+
+            ChatMessages.Remove(msg);
+            ShowStatus("🗑️ Message deleted");
         }
 
         private void ExecuteClearChat()

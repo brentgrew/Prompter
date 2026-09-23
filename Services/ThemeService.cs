@@ -280,14 +280,37 @@ namespace Prompter.Services
             }
 
             // Dynamically update native title bars for all active windows
-            foreach (Window win in Application.Current.Windows)
+            try
             {
-                var h = new WindowInteropHelper(win).Handle;
-                if (h != IntPtr.Zero)
+                if (Application.Current != null)
                 {
-                    UpdateTitleBarTheme(h, theme == AppTheme.Dark);
+                    Action updateAction = () =>
+                    {
+                        try
+                        {
+                            foreach (Window win in Application.Current.Windows)
+                            {
+                                var h = new WindowInteropHelper(win).Handle;
+                                if (h != IntPtr.Zero)
+                                {
+                                    UpdateTitleBarTheme(h, theme == AppTheme.Dark);
+                                }
+                            }
+                        }
+                        catch { }
+                    };
+
+                    if (Application.Current.Dispatcher.CheckAccess())
+                    {
+                        updateAction();
+                    }
+                    else
+                    {
+                        Application.Current.Dispatcher.BeginInvoke(updateAction);
+                    }
                 }
             }
+            catch { }
         }
 
         private static void SetResource(ResourceDictionary resources, string key, Color color)

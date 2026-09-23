@@ -118,7 +118,7 @@ namespace Prompter.Services
                                 .Concat(Directory.GetFiles(modelsDir, "*.ckpt", SearchOption.TopDirectoryOnly))
                                 .Concat(Directory.GetFiles(modelsDir, "*.gguf", SearchOption.TopDirectoryOnly))
                                 .Select(Path.GetFileName)
-                                .Where(f => !string.IsNullOrEmpty(f))
+                                .Where(f => !string.IsNullOrEmpty(f) && !SwarmUiService.IsVideoModelName(f!))
                                 .ToList();
                             result.FoundModels.AddRange(files!);
                         }

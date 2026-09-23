@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using Prompter.Models;
 using Prompter.Services;
 using Prompter.ViewModels;
@@ -27,16 +28,21 @@ namespace Prompter
             StateChanged += MainWindow_StateChanged;
             Closing += MainWindow_Closing;
 
-            // Auto-scroll chat conversation when new tokens/messages arrive
+            // Auto-scroll chat conversation smoothly when new tokens/messages arrive
             ViewModel.ChatMessages.CollectionChanged += (s, e) =>
             {
                 Dispatcher.InvokeAsync(() =>
                 {
-                    if (lstChatMessages.Items.Count > 0)
+                    var sv = FindChildScrollViewer(lstChatMessages);
+                    if (sv != null)
+                    {
+                        sv.ScrollToBottom();
+                    }
+                    else if (lstChatMessages.Items.Count > 0)
                     {
                         lstChatMessages.ScrollIntoView(lstChatMessages.Items[lstChatMessages.Items.Count - 1]);
                     }
-                });
+                }, System.Windows.Threading.DispatcherPriority.Background);
             };
         }
 
@@ -160,6 +166,62 @@ namespace Prompter
                 ViewModel.ShowImageInFolder(path);
                 e.Handled = true;
             }
+        }
+
+        private void RegenerateImage_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement elem && elem.Tag is ChatMessage message)
+            {
+                var prompt = !string.IsNullOrWhiteSpace(message.ImagePrompt)
+                    ? message.ImagePrompt
+                    : message.Content.Replace("Prompt: \"", "").TrimEnd('\"');
+
+                if (!string.IsNullOrWhiteSpace(prompt))
+                {
+                    ViewModel.TriggerImageRegeneration(prompt);
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void DeleteImage_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement elem && elem.Tag is ChatMessage message)
+            {
+                var result = MessageBox.Show(
+                    "Are you sure you want to delete this generated image?\n\nThis will remove it from the chat and delete the file from your computer.",
+                    "Confirm Delete Image",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    ViewModel.DeleteChatMessage(message);
+                }
+                e.Handled = true;
+            }
+        }
+
+        private void ImagePreview_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement elem && elem.DataContext is ChatMessage message && !string.IsNullOrEmpty(message.ImagePath))
+            {
+                ViewModel.OpenImageFile(message.ImagePath);
+                e.Handled = true;
+            }
+        }
+
+        private static ScrollViewer? FindChildScrollViewer(DependencyObject depObj)
+        {
+            if (depObj == null) return null;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(depObj); i++)
+            {
+                var child = VisualTreeHelper.GetChild(depObj, i);
+                if (child is ScrollViewer sv) return sv;
+                var childSv = FindChildScrollViewer(child);
+                if (childSv != null) return childSv;
+            }
+            return null;
         }
 
         private void TxtChatInput_PreviewKeyDown(object sender, KeyEventArgs e)

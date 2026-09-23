@@ -175,7 +175,7 @@ namespace Prompter.Services
                             foreach (var item in filesArr.EnumerateArray())
                             {
                                 var name = item.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                                if (string.IsNullOrEmpty(name)) continue;
+                                if (string.IsNullOrEmpty(name) || IsVideoModelName(name)) continue;
 
                                 int width = 1024;
                                 int height = 1024;
@@ -234,6 +234,10 @@ namespace Prompter.Services
                         var relativeName = Path.GetRelativePath(SwarmModelsPath, file).Replace('\\', '/');
                         var fileName = Path.GetFileName(file);
 
+                        // Skip video models (Wan, animate, etc.)
+                        if (IsVideoModelName(fileName) || IsVideoModelName(relativeName))
+                            continue;
+
                         // If not already detected via API
                         if (!models.ContainsKey(relativeName) && !models.ContainsKey(fileName))
                         {
@@ -262,11 +266,26 @@ namespace Prompter.Services
                 // Non-fatal
             }
 
-            // Sort: SDXL / Pony / DreamShaper first, then by Name
+            // Sort: SDXL / Pony / DreamShaper first, then by Name (excluding any video models)
             return models.Values
+                .Where(m => !IsVideoModelName(m.Name) && !IsVideoModelName(m.ModelId))
                 .OrderByDescending(m => m.IsSdxl ? 3 : (m.IsSd15 ? 2 : 1))
                 .ThenBy(m => m.Name)
                 .ToList();
+        }
+
+        public static bool IsVideoModelName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            var lower = name.ToLowerInvariant();
+            return lower.Contains("wan") ||
+                   lower.Contains("t2v") ||
+                   lower.Contains("i2v") ||
+                   lower.Contains("vfi") ||
+                   lower.Contains("svd") ||
+                   lower.Contains("video") ||
+                   lower.Contains("animate") ||
+                   lower.Contains("cogvideox");
         }
 
         private static bool IsSd15Name(string name)

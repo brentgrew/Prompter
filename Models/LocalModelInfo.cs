@@ -112,13 +112,24 @@ namespace Prompter.Models
             }
         }
 
+        public bool IsVideoModel =>
+            Name.Contains("wan", StringComparison.OrdinalIgnoreCase) ||
+            ModelId.Contains("wan", StringComparison.OrdinalIgnoreCase) ||
+            Name.Contains("t2v", StringComparison.OrdinalIgnoreCase) ||
+            Name.Contains("i2v", StringComparison.OrdinalIgnoreCase) ||
+            Name.Contains("vfi", StringComparison.OrdinalIgnoreCase) ||
+            Name.Contains("svd", StringComparison.OrdinalIgnoreCase) ||
+            Name.Contains("video", StringComparison.OrdinalIgnoreCase) ||
+            Name.Contains("animate", StringComparison.OrdinalIgnoreCase) ||
+            Name.Contains("cogvideox", StringComparison.OrdinalIgnoreCase);
+
         public string DisplayName
         {
             get
             {
                 if (IsImageModel)
                 {
-                    return $"{FamilyPrefix}{Name} ({StandardWidth}×{StandardHeight})";
+                    return $"{FamilyPrefix}{Name}";
                 }
                 var details = !string.IsNullOrEmpty(ParameterSize) ? $" ({ParameterSize})" : "";
                 return $"{FamilyPrefix}{Name}{details}";
@@ -131,13 +142,7 @@ namespace Prompter.Models
             {
                 var parts = new System.Collections.Generic.List<string>();
                 parts.Add(FamilyName);
-                if (IsImageModel)
-                {
-                    parts.Add($"{StandardWidth}×{StandardHeight}");
-                    parts.Add("50 steps");
-                    parts.Add("CFG 7");
-                }
-                else
+                if (!IsImageModel)
                 {
                     if (!string.IsNullOrEmpty(ParameterSize)) parts.Add(ParameterSize);
                     if (!string.IsNullOrEmpty(Quantization)) parts.Add(Quantization);
