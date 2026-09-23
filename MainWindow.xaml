@@ -1107,16 +1107,56 @@
                                 <ComboBox ItemsSource="{Binding AvailableChatModels}"
                                           SelectedItem="{Binding SelectedChatModel, Mode=TwoWay}"
                                           Height="30" VerticalContentAlignment="Center" Margin="0,0,0,6">
+                                    <ComboBox.ItemContainerStyle>
+                                        <Style TargetType="ComboBoxItem">
+                                            <Setter Property="ContextMenu">
+                                                <Setter.Value>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="⭐ Set as Default Chat Model"
+                                                                  Command="{Binding DataContext.SetDefaultModelCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                  CommandParameter="{Binding}"/>
+                                                    </ContextMenu>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ComboBox.ItemContainerStyle>
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
+                                            <Grid Background="Transparent">
+                                                <Grid.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="⭐ Set as Default Chat Model"
+                                                                  Command="{Binding DataContext.SetDefaultModelCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                  CommandParameter="{Binding}"/>
+                                                    </ContextMenu>
+                                                </Grid.ContextMenu>
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                                 <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="6" Padding="8,5"
                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
-                                    <TextBlock Text="{Binding SelectedChatModel.DetailsBadge, FallbackValue='No chat model selected'}"
-                                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+                                    <Border.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="⭐ Set as Default Chat Model"
+                                                      Command="{Binding SetDefaultModelCommand}"
+                                                      CommandParameter="{Binding SelectedChatModel}"/>
+                                        </ContextMenu>
+                                    </Border.ContextMenu>
+                                    <DockPanel>
+                                        <Button Style="{StaticResource QuickCopyButton}" Content="⭐ Set Default"
+                                                DockPanel.Dock="Right" Padding="6,1" FontSize="10" VerticalAlignment="Center"
+                                                Command="{Binding SetDefaultModelCommand}" CommandParameter="{Binding SelectedChatModel}"
+                                                ToolTip="Set this model as default chat model"/>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding SelectedChatModel.Name, FallbackValue='No chat model selected'}"
+                                                       FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource WindowForegroundBrush}"
+                                                       TextTrimming="CharacterEllipsis" Margin="0,0,0,2"/>
+                                            <TextBlock Text="{Binding SelectedChatModel.DetailsBadge, FallbackValue='Ollama Chat Model'}"
+                                                       FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DockPanel>
                                 </Border>
                             </StackPanel>
 
@@ -1125,21 +1165,56 @@
                                 <ComboBox ItemsSource="{Binding AvailableImageModels}"
                                           SelectedItem="{Binding SelectedImageModel, Mode=TwoWay}"
                                           Height="30" VerticalContentAlignment="Center" Margin="0,0,0,6">
+                                    <ComboBox.ItemContainerStyle>
+                                        <Style TargetType="ComboBoxItem">
+                                            <Setter Property="ContextMenu">
+                                                <Setter.Value>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="⭐ Set as Default Image Model"
+                                                                  Command="{Binding DataContext.SetDefaultModelCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                  CommandParameter="{Binding}"/>
+                                                    </ContextMenu>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ComboBox.ItemContainerStyle>
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
+                                            <Grid Background="Transparent">
+                                                <Grid.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="⭐ Set as Default Image Model"
+                                                                  Command="{Binding DataContext.SetDefaultModelCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                  CommandParameter="{Binding}"/>
+                                                    </ContextMenu>
+                                                </Grid.ContextMenu>
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                                 <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="6" Padding="8,5"
                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding SelectedImageModel.Name, FallbackValue='No image model selected'}"
-                                                   FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource WindowForegroundBrush}"
-                                                   TextTrimming="CharacterEllipsis" Margin="0,0,0,2"/>
-                                        <TextBlock Text="{Binding SelectedImageModel.DetailsBadge, FallbackValue='SwarmUI Image Model'}"
-                                                   FontSize="10.5" Foreground="#38BDF8" TextWrapping="Wrap"/>
-                                    </StackPanel>
+                                    <Border.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="⭐ Set as Default Image Model"
+                                                      Command="{Binding SetDefaultModelCommand}"
+                                                      CommandParameter="{Binding SelectedImageModel}"/>
+                                        </ContextMenu>
+                                    </Border.ContextMenu>
+                                    <DockPanel>
+                                        <Button Style="{StaticResource QuickCopyButton}" Content="⭐ Set Default"
+                                                DockPanel.Dock="Right" Padding="6,1" FontSize="10" VerticalAlignment="Center"
+                                                Command="{Binding SetDefaultModelCommand}" CommandParameter="{Binding SelectedImageModel}"
+                                                ToolTip="Set this model as default image model"/>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding SelectedImageModel.Name, FallbackValue='No image model selected'}"
+                                                       FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource WindowForegroundBrush}"
+                                                       TextTrimming="CharacterEllipsis" Margin="0,0,0,2"/>
+                                            <TextBlock Text="{Binding SelectedImageModel.DetailsBadge, FallbackValue='SwarmUI Image Model'}"
+                                                       FontSize="10.5" Foreground="#38BDF8" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DockPanel>
                                 </Border>
                             </StackPanel>
 

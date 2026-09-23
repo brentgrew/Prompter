@@ -652,6 +652,30 @@ namespace Prompter.Tests
         }
 
         [TestMethod]
+        public void TestDefaultModelIndicatorsAndPersistence()
+        {
+            var imageModel1 = new LocalModelInfo { Name = "SDXL 1.0.safetensors", ModelId = "SDXL 1.0.safetensors", IsImageModel = true };
+            var imageModel2 = new LocalModelInfo { Name = "Pony v23.safetensors", ModelId = "Pony v23.safetensors", IsImageModel = true };
+
+            Assert.IsFalse(imageModel1.IsDefault);
+            Assert.IsFalse(imageModel1.DisplayName.StartsWith("⭐"));
+            Assert.IsFalse(imageModel1.DetailsBadge.Contains("⭐ Default"));
+
+            imageModel1.IsDefault = true;
+            Assert.IsTrue(imageModel1.IsDefault);
+            Assert.IsTrue(imageModel1.DisplayName.StartsWith("⭐"));
+            Assert.IsTrue(imageModel1.DetailsBadge.Contains("⭐ Default"));
+
+            var chatModel = new LocalModelInfo { Name = "qwen2.5:3b", ModelId = "qwen2.5:3b", IsImageModel = false, ParameterSize = "3B" };
+            Assert.IsFalse(chatModel.IsDefault);
+
+            chatModel.IsDefault = true;
+            Assert.IsTrue(chatModel.IsDefault);
+            Assert.IsTrue(chatModel.DisplayName.StartsWith("⭐"));
+            Assert.IsTrue(chatModel.DetailsBadge.Contains("⭐ Default"));
+        }
+
+        [TestMethod]
         public void TestChatMessageImagePropertiesAndNotifications()
         {
             var msg = new ChatMessage("Assistant", "")

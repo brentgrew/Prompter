@@ -92,6 +92,7 @@ namespace Prompter.ViewModels
             CopyImageToClipboardCommand = new RelayCommand(p => CopyImageToClipboard(p as string));
             OpenImageFileCommand = new RelayCommand(p => OpenImageFile(p as string));
             ShowImageInFolderCommand = new RelayCommand(p => ShowImageInFolder(p as string));
+            SetDefaultModelCommand = new RelayCommand(p => ExecuteSetDefaultModel(p as LocalModelInfo));
 
             ThemeService.Instance.ThemeChanged += _ =>
             {
@@ -444,6 +445,7 @@ namespace Prompter.ViewModels
         public RelayCommand CopyImageToClipboardCommand { get; }
         public RelayCommand OpenImageFileCommand { get; }
         public RelayCommand ShowImageInFolderCommand { get; }
+        public RelayCommand SetDefaultModelCommand { get; }
 
         public string ThemeToggleIcon => ThemeService.Instance.CurrentTheme == AppTheme.Dark ? "☀️" : "🌙";
         public string ThemeToggleText => ThemeService.Instance.CurrentTheme == AppTheme.Dark ? "Light" : "Dark";
@@ -781,9 +783,22 @@ namespace Prompter.ViewModels
                 foreach (var m in chatModels) AvailableModels.Add(m);
                 foreach (var m in imageModels) AvailableModels.Add(m);
 
-                // Restore last chat model
+                // Restore default or last chat model
+                var defaultChatModelId = LoadDefaultChatModel();
                 var savedChatModelId = LoadLastSelectedModel();
-                if (!string.IsNullOrEmpty(savedChatModelId))
+
+                foreach (var m in AvailableChatModels)
+                {
+                    m.IsDefault = !string.IsNullOrEmpty(defaultChatModelId) &&
+                                  (string.Equals(m.ModelId, defaultChatModelId, StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(m.Name, defaultChatModelId, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (!string.IsNullOrEmpty(defaultChatModelId))
+                {
+                    SelectedChatModel = AvailableChatModels.FirstOrDefault(m => m.IsDefault);
+                }
+                if (SelectedChatModel == null && !string.IsNullOrEmpty(savedChatModelId))
                 {
                     SelectedChatModel = AvailableChatModels.FirstOrDefault(m => string.Equals(m.ModelId, savedChatModelId, StringComparison.OrdinalIgnoreCase)
                                                                              || string.Equals(m.Name, savedChatModelId, StringComparison.OrdinalIgnoreCase));
@@ -795,9 +810,22 @@ namespace Prompter.ViewModels
                                      ?? AvailableChatModels.FirstOrDefault();
                 }
 
-                // Restore last image model
+                // Restore default or last image model
+                var defaultImageModelId = LoadDefaultImageModel();
                 var savedImageModelId = LoadLastSelectedImageModel();
-                if (!string.IsNullOrEmpty(savedImageModelId))
+
+                foreach (var m in AvailableImageModels)
+                {
+                    m.IsDefault = !string.IsNullOrEmpty(defaultImageModelId) &&
+                                  (string.Equals(m.ModelId, defaultImageModelId, StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(m.Name, defaultImageModelId, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (!string.IsNullOrEmpty(defaultImageModelId))
+                {
+                    SelectedImageModel = AvailableImageModels.FirstOrDefault(m => m.IsDefault);
+                }
+                if (SelectedImageModel == null && !string.IsNullOrEmpty(savedImageModelId))
                 {
                     SelectedImageModel = AvailableImageModels.FirstOrDefault(m => string.Equals(m.ModelId, savedImageModelId, StringComparison.OrdinalIgnoreCase)
                                                                                || string.Equals(m.Name, savedImageModelId, StringComparison.OrdinalIgnoreCase));
@@ -1269,6 +1297,89 @@ namespace Prompter.ViewModels
             try
             {
                 var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prompter", "last_image_model.txt");
+                if (File.Exists(path))
+                {
+                    return File.ReadAllText(path).Trim();
+                }
+            }
+            catch { }
+            return null;
+        }
+        public void ExecuteSetDefaultModel(LocalModelInfo? model)
+        {
+            model ??= CurrentModel;
+            if (model == null) return;
+
+            if (model.IsImageModel)
+            {
+                foreach (var m in AvailableImageModels)
+                {
+                    m.IsDefault = (m == model || string.Equals(m.ModelId, model.ModelId, StringComparison.OrdinalIgnoreCase)
+                                              || string.Equals(m.Name, model.Name, StringComparison.OrdinalIgnoreCase));
+                }
+                SaveDefaultImageModel(model.ModelId);
+                SelectedImageModel = model;
+                ShowStatus($"⭐ Default image model set to {model.Name}");
+            }
+            else
+            {
+                foreach (var m in AvailableChatModels)
+                {
+                    m.IsDefault = (m == model || string.Equals(m.ModelId, model.ModelId, StringComparison.OrdinalIgnoreCase)
+                                              || string.Equals(m.Name, model.Name, StringComparison.OrdinalIgnoreCase));
+                }
+                SaveDefaultChatModel(model.ModelId);
+                SelectedChatModel = model;
+                ShowStatus($"⭐ Default chat model set to {model.Name}");
+            }
+
+            OnPropertyChanged(nameof(CurrentModel));
+            OnPropertyChanged(nameof(ActiveModelDisplayName));
+        }
+
+        private void SaveDefaultChatModel(string? modelId)
+        {
+            if (string.IsNullOrEmpty(modelId)) return;
+            try
+            {
+                var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prompter");
+                Directory.CreateDirectory(folder);
+                File.WriteAllText(Path.Combine(folder, "default_chat_model.txt"), modelId);
+            }
+            catch { }
+        }
+
+        public string? LoadDefaultChatModel()
+        {
+            try
+            {
+                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prompter", "default_chat_model.txt");
+                if (File.Exists(path))
+                {
+                    return File.ReadAllText(path).Trim();
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private void SaveDefaultImageModel(string? modelId)
+        {
+            if (string.IsNullOrEmpty(modelId)) return;
+            try
+            {
+                var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prompter");
+                Directory.CreateDirectory(folder);
+                File.WriteAllText(Path.Combine(folder, "default_image_model.txt"), modelId);
+            }
+            catch { }
+        }
+
+        public string? LoadDefaultImageModel()
+        {
+            try
+            {
+                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prompter", "default_image_model.txt");
                 if (File.Exists(path))
                 {
                     return File.ReadAllText(path).Trim();

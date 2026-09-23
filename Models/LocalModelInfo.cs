@@ -1,9 +1,31 @@
 using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Prompter.Models
 {
-    public class LocalModelInfo
+    public class LocalModelInfo : INotifyPropertyChanged
     {
+        private bool _isDefault;
+
+        public bool IsDefault
+        {
+            get => _isDefault;
+            set
+            {
+                if (_isDefault != value)
+                {
+                    _isDefault = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayName));
+                    OnPropertyChanged(nameof(DetailsBadge));
+                    OnPropertyChanged(nameof(StarIcon));
+                }
+            }
+        }
+
+        public string StarIcon => IsDefault ? "⭐ " : "";
+
         public string Name { get; set; } = string.Empty;
         public string ModelId { get; set; } = string.Empty;
         public string Family { get; set; } = string.Empty;
@@ -127,12 +149,13 @@ namespace Prompter.Models
         {
             get
             {
+                var star = IsDefault ? "⭐ " : "";
                 if (IsImageModel)
                 {
-                    return $"{FamilyPrefix}{Name}";
+                    return $"{star}{FamilyPrefix}{Name}";
                 }
                 var details = !string.IsNullOrEmpty(ParameterSize) ? $" ({ParameterSize})" : "";
-                return $"{FamilyPrefix}{Name}{details}";
+                return $"{star}{FamilyPrefix}{Name}{details}";
             }
         }
 
@@ -141,6 +164,7 @@ namespace Prompter.Models
             get
             {
                 var parts = new System.Collections.Generic.List<string>();
+                if (IsDefault) parts.Add("⭐ Default");
                 parts.Add(FamilyName);
                 if (!IsImageModel)
                 {
@@ -150,6 +174,13 @@ namespace Prompter.Models
                 if (!string.IsNullOrEmpty(Source)) parts.Add(Source);
                 return string.Join(" • ", parts);
             }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         public override string ToString() => DisplayName;
