@@ -134,9 +134,78 @@ namespace Prompter
 
         private void ChatCopyButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is ChatMessage message)
+            ChatMessage? message = null;
+            if (sender is FrameworkElement elem)
+            {
+                if (elem.Tag is ChatMessage msg)
+                    message = msg;
+                else if (elem.DataContext is ChatMessage dcMsg)
+                    message = dcMsg;
+            }
+
+            if (message != null)
             {
                 ViewModel.CopyChatMessage(message);
+                e.Handled = true;
+            }
+        }
+
+        private void EditUserPrompt_Click(object sender, RoutedEventArgs e)
+        {
+            string? prompt = null;
+            if (sender is FrameworkElement elem)
+            {
+                if (elem.Tag is string s)
+                    prompt = s;
+                else if (elem.Tag is ChatMessage msg)
+                    prompt = !string.IsNullOrWhiteSpace(msg.ImagePrompt) ? msg.ImagePrompt : msg.Content;
+                else if (elem.DataContext is ChatMessage dcMsg)
+                    prompt = !string.IsNullOrWhiteSpace(dcMsg.ImagePrompt) ? dcMsg.ImagePrompt : dcMsg.Content;
+            }
+
+            if (!string.IsNullOrEmpty(prompt))
+            {
+                ViewModel.LoadPromptForEditing(prompt);
+                txtChatInput.Focus();
+                txtChatInput.Select(txtChatInput.Text.Length, 0);
+                e.Handled = true;
+            }
+        }
+
+        private void CopyUserPrompt_Click(object sender, RoutedEventArgs e)
+        {
+            string? prompt = null;
+            if (sender is FrameworkElement elem)
+            {
+                if (elem.Tag is string s)
+                    prompt = s;
+                else if (elem.Tag is ChatMessage msg)
+                    prompt = !string.IsNullOrWhiteSpace(msg.ImagePrompt) ? msg.ImagePrompt : msg.Content;
+                else if (elem.DataContext is ChatMessage dcMsg)
+                    prompt = !string.IsNullOrWhiteSpace(dcMsg.ImagePrompt) ? dcMsg.ImagePrompt : dcMsg.Content;
+            }
+
+            if (!string.IsNullOrEmpty(prompt))
+            {
+                ViewModel.CopyTextToClipboard(prompt, "✓ Prompt copied to clipboard!");
+                e.Handled = true;
+            }
+        }
+
+        private void DeleteChatMessage_Click(object sender, RoutedEventArgs e)
+        {
+            ChatMessage? message = null;
+            if (sender is FrameworkElement elem)
+            {
+                if (elem.Tag is ChatMessage msg)
+                    message = msg;
+                else if (elem.DataContext is ChatMessage dcMsg)
+                    message = dcMsg;
+            }
+
+            if (message != null)
+            {
+                ViewModel.DeleteChatMessage(message);
                 e.Handled = true;
             }
         }

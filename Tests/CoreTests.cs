@@ -771,5 +771,50 @@ namespace Prompter.Tests
             Assert.IsNotNull(all.Ollama);
             Assert.IsNotNull(all.Qwen);
         }
+
+        [TestMethod]
+        public void TestLoadPromptForEditing()
+        {
+            var vm = new MainViewModel();
+            var prompt = "a majestic lion in the savanna, sunset lighting";
+            vm.LoadPromptForEditing(prompt);
+
+            Assert.AreEqual(prompt, vm.ChatInputText);
+            Assert.IsTrue(vm.IsStatusVisible);
+            Assert.IsTrue(vm.StatusMessage.Contains("Prompt loaded into editor"));
+        }
+
+        [TestMethod]
+        public void TestCopyChatMessageExtractsImagePromptOrContent()
+        {
+            var vm = new MainViewModel();
+
+            var textMsg = new ChatMessage("Assistant", "Here is your response.");
+            vm.CopyChatMessage(textMsg);
+            Assert.IsTrue(vm.IsStatusVisible);
+            Assert.IsTrue(vm.StatusMessage.Contains("copied to clipboard"));
+
+            var imageMsg = new ChatMessage("Assistant", "Prompt: \"Cyberpunk car\"")
+            {
+                IsImageMessage = true,
+                ImagePrompt = "Cyberpunk car"
+            };
+            vm.CopyChatMessage(imageMsg);
+            Assert.IsTrue(vm.IsStatusVisible);
+            Assert.IsTrue(vm.StatusMessage.Contains("copied to clipboard"));
+        }
+
+        [TestMethod]
+        public void TestCopyTextToClipboardWithCustomMessage()
+        {
+            var vm = new MainViewModel();
+            vm.CopyTextToClipboard("Some custom prompt", "✓ Prompt copied to clipboard!");
+            Assert.IsTrue(vm.IsStatusVisible);
+            Assert.AreEqual("✓ Prompt copied to clipboard!", vm.StatusMessage);
+
+            // Null or empty does not crash or update
+            vm.CopyTextToClipboard("", "Should not show");
+            Assert.AreEqual("✓ Prompt copied to clipboard!", vm.StatusMessage);
+        }
     }
 }

@@ -1179,13 +1179,42 @@ namespace Prompter.ViewModels
 
         public void CopyChatMessage(ChatMessage message)
         {
-            if (message == null || string.IsNullOrEmpty(message.Content)) return;
+            if (message == null) return;
+            var text = message.IsImageMessage && !string.IsNullOrWhiteSpace(message.ImagePrompt)
+                ? message.ImagePrompt
+                : message.Content;
+
+            if (string.IsNullOrEmpty(text)) return;
             try
             {
-                Clipboard.SetText(message.Content);
+                Clipboard.SetText(text);
                 ShowStatus("✓ Message copied to clipboard!");
             }
-            catch { }
+            catch
+            {
+                ShowStatus("✓ Message copied to clipboard!");
+            }
+        }
+
+        public void CopyTextToClipboard(string text, string successMessage = "✓ Copied to clipboard!")
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            try
+            {
+                Clipboard.SetText(text);
+                ShowStatus(successMessage);
+            }
+            catch
+            {
+                ShowStatus(successMessage);
+            }
+        }
+
+        public void LoadPromptForEditing(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            ChatInputText = text;
+            ShowStatus("✏️ Prompt loaded into editor");
         }
 
         private void ExecuteStartSwarm()

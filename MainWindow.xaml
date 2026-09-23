@@ -137,6 +137,41 @@
             </Setter>
         </Style>
 
+        <Style x:Key="UserBubbleActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#60A5FA"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="7,2"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" TargetName="border" Value="#1D4ED8"/>
+                                <Setter Property="BorderBrush" TargetName="border" Value="#BFDBFE"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" TargetName="border" Value="#1E40AF"/>
+                                <Setter Property="Opacity" TargetName="border" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="FlatTextBox" TargetType="TextBox">
             <Setter Property="FontSize" Value="13.5"/>
             <Setter Property="Padding" Value="10,7"/>
@@ -742,15 +777,46 @@
                                             Background="{DynamicResource ChatBubbleUserBackgroundBrush}"
                                             CornerRadius="14,14,2,14" Padding="14,10"
                                             Visibility="{Binding IsUser, Converter={StaticResource BoolToVis}}">
+                                        <Border.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="✏️ Edit Prompt" Click="EditUserPrompt_Click" Tag="{Binding Content}"/>
+                                                <MenuItem Header="📋 Copy Prompt" Click="CopyUserPrompt_Click" Tag="{Binding Content}"/>
+                                                <Separator/>
+                                                <MenuItem Header="🗑️ Delete Message" Click="DeleteChatMessage_Click" Tag="{Binding}"/>
+                                            </ContextMenu>
+                                        </Border.ContextMenu>
                                         <StackPanel>
                                             <DockPanel Margin="0,0,0,6">
-                                                <TextBlock Text="👤 You" FontWeight="Bold" FontSize="11.5" Foreground="#E0E7FF"/>
-                                                <TextBlock HorizontalAlignment="Right" Text="{Binding TimeFormatted}" FontSize="10.5" Foreground="#C7D2FE"/>
+                                                <TextBlock Text="👤 You" FontWeight="Bold" FontSize="11.5" Foreground="#E0E7FF" VerticalAlignment="Center"/>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding TimeFormatted}" FontSize="10.5" Foreground="#C7D2FE"
+                                                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <Button Style="{StaticResource UserBubbleActionButton}" Content="✏️"
+                                                            Padding="5,1" FontSize="10.5" Margin="0,0,4,0"
+                                                            ToolTip="Edit prompt in input box"
+                                                            Click="EditUserPrompt_Click" Tag="{Binding Content}"/>
+                                                    <Button Style="{StaticResource UserBubbleActionButton}" Content="📋"
+                                                            Padding="5,1" FontSize="10.5"
+                                                            ToolTip="Copy prompt to clipboard"
+                                                            Click="CopyUserPrompt_Click" Tag="{Binding Content}"/>
+                                                </StackPanel>
                                             </DockPanel>
                                             <TextBox Text="{Binding Content, Mode=OneWay}"
                                                      IsReadOnly="True" BorderThickness="0" Background="Transparent"
                                                      Foreground="{DynamicResource ChatBubbleUserForegroundBrush}"
                                                      FontSize="13.5" TextWrapping="Wrap" CaretBrush="#FFFFFF"/>
+
+                                            <!-- User Action Bar at Bottom Right (pointed to by the arrows in screenshot) -->
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
+                                                <Button Style="{StaticResource UserBubbleActionButton}" Content="✏️ Edit Prompt"
+                                                        Padding="7,2" FontSize="10.5" Margin="0,0,6,0"
+                                                        ToolTip="Edit prompt in chat input box (pen)"
+                                                        Click="EditUserPrompt_Click" Tag="{Binding Content}"/>
+                                                <Button Style="{StaticResource UserBubbleActionButton}" Content="📋 Copy Prompt"
+                                                        Padding="7,2" FontSize="10.5"
+                                                        ToolTip="Copy prompt to clipboard (clipboard icon)"
+                                                        Click="CopyUserPrompt_Click" Tag="{Binding Content}"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
 
@@ -760,6 +826,15 @@
                                             BorderBrush="{DynamicResource ChatBubbleAssistantBorderBrush}"
                                             BorderThickness="1" CornerRadius="14,14,14,2" Padding="14,10"
                                             Visibility="{Binding IsAssistant, Converter={StaticResource BoolToVis}}">
+                                        <Border.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="📋 Copy Response" Click="ChatCopyButton_Click" Tag="{Binding}"/>
+                                                <MenuItem Header="✏️ Edit Prompt" Click="EditUserPrompt_Click" Tag="{Binding}"
+                                                          Visibility="{Binding IsImageMessage, Converter={StaticResource BoolToVis}}"/>
+                                                <Separator/>
+                                                <MenuItem Header="🗑️ Delete Message" Click="DeleteChatMessage_Click" Tag="{Binding}"/>
+                                            </ContextMenu>
+                                        </Border.ContextMenu>
                                         <StackPanel>
                                             <!-- Assistant Header -->
                                             <DockPanel Margin="0,0,0,6">
@@ -774,7 +849,9 @@
                                                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                     <Button Style="{StaticResource QuickCopyButton}" Content="📋 Copy Text"
                                                             Padding="6,2" FontSize="10.5"
-                                                            Click="ChatCopyButton_Click" Tag="{Binding}"/>
+                                                            Visibility="{Binding IsImageMessage, Converter={StaticResource InvertBoolToVis}}"
+                                                            Click="ChatCopyButton_Click" Tag="{Binding}"
+                                                            ToolTip="Copy AI response to clipboard"/>
                                                 </StackPanel>
                                             </DockPanel>
 
@@ -787,7 +864,7 @@
                                                         Visibility="{Binding IsImageLoading, Converter={StaticResource BoolToVis}}">
                                                     <StackPanel HorizontalAlignment="Center">
                                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
-                                                            <TextBlock Text="⏳" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                             <TextBlock Text="⏳" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                                             <TextBlock Text="Generating Image in SwarmUI..." FontWeight="Bold" FontSize="13"
                                                                        Foreground="{DynamicResource AccentPrimaryBrush}"/>
                                                         </StackPanel>
@@ -817,12 +894,18 @@
                                                         <Button Style="{StaticResource QuickCopyButton}" Content="🔄 Regenerate"
                                                                 Margin="0,0,6,4" Click="RegenerateImage_Click" Tag="{Binding}"
                                                                 ToolTip="Regenerate with the same prompt"/>
-                                                        <Button Style="{StaticResource OutlineButton}" Content="📁 Open in Folder"
-                                                                Padding="6,2" FontSize="10.5" Margin="0,0,6,4" Click="ShowInFolder_Click" Tag="{Binding ImagePath}"
-                                                                ToolTip="Open containing folder and select file in Explorer"/>
+                                                        <Button Style="{StaticResource QuickCopyButton}" Content="✏️ Edit Prompt"
+                                                                Margin="0,0,6,4" Click="EditUserPrompt_Click" Tag="{Binding ImagePrompt}"
+                                                                ToolTip="Load prompt into input box to edit"/>
+                                                        <Button Style="{StaticResource QuickCopyButton}" Content="📋 Copy Prompt"
+                                                                Margin="0,0,6,4" Click="CopyUserPrompt_Click" Tag="{Binding ImagePrompt}"
+                                                                ToolTip="Copy prompt text to clipboard"/>
                                                         <Button Style="{StaticResource QuickCopyButton}" Content="📋 Copy Image"
                                                                 Margin="0,0,6,4" Click="CopyImage_Click" Tag="{Binding ImagePath}"
                                                                 ToolTip="Copy image bitmap to clipboard"/>
+                                                        <Button Style="{StaticResource OutlineButton}" Content="📁 Open in Folder"
+                                                                Padding="6,2" FontSize="10.5" Margin="0,0,6,4" Click="ShowInFolder_Click" Tag="{Binding ImagePath}"
+                                                                ToolTip="Open containing folder and select file in Explorer"/>
                                                         <Button Style="{StaticResource OutlineButton}" Content="🔍 Full View"
                                                                 Padding="6,2" FontSize="10.5" Margin="0,0,6,4" Click="OpenImage_Click" Tag="{Binding ImagePath}"
                                                                 ToolTip="Open in default image viewer"/>
@@ -842,7 +925,7 @@
                                                         Visibility="{Binding HasThinking, Converter={StaticResource BoolToVis}}">
                                                     <StackPanel>
                                                         <DockPanel Margin="0,0,0,4">
-                                                            <TextBlock Text="💭 Thought Process" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                                             <TextBlock Text="💭 Thought Process" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextSubtleBrush}"/>
                                                         </DockPanel>
                                                         <TextBox Text="{Binding ThinkingContent, Mode=OneWay}"
                                                                  IsReadOnly="True" BorderThickness="0" Background="Transparent"
@@ -866,6 +949,19 @@
                                                                    Foreground="{DynamicResource AccentPrimaryBrush}"/>
                                                     </StackPanel>
                                                 </Border>
+
+                                                <!-- Action Buttons for Chat Response (Visible when generation completes) -->
+                                                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0"
+                                                           Visibility="{Binding IsGenerating, Converter={StaticResource InvertBoolToVis}}">
+                                                    <Button Style="{StaticResource QuickCopyButton}" Content="📋 Copy Response"
+                                                            Padding="8,3" FontSize="11" Margin="0,0,6,0"
+                                                            ToolTip="Copy AI response to clipboard"
+                                                            Click="ChatCopyButton_Click" Tag="{Binding}"/>
+                                                    <Button Style="{StaticResource QuickDeleteButton}" Content="🗑️ Delete"
+                                                            Padding="8,3" FontSize="11"
+                                                            ToolTip="Delete this response from chat"
+                                                            Click="DeleteChatMessage_Click" Tag="{Binding}"/>
+                                                </WrapPanel>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
