@@ -198,9 +198,9 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="64"/>
-            <RowDefinition Height="6*" MinHeight="260"/>
-            <RowDefinition Height="6"/>
             <RowDefinition Height="4*" MinHeight="180"/>
+            <RowDefinition Height="6"/>
+            <RowDefinition Height="6*" MinHeight="260"/>
         </Grid.RowDefinitions>
 
         <!-- TOP BAR -->
@@ -864,12 +864,35 @@
                                                         Visibility="{Binding IsImageLoading, Converter={StaticResource BoolToVis}}">
                                                     <StackPanel HorizontalAlignment="Center">
                                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
-                                                             <TextBlock Text="⏳" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                            <!-- Animated Rotating Throbber -->
+                                                            <Grid Width="22" Height="22" Margin="0,0,10,0" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                                                <Grid.RenderTransform>
+                                                                    <RotateTransform x:Name="ThrobberSpinnerRotation" Angle="0"/>
+                                                                </Grid.RenderTransform>
+                                                                <Grid.Triggers>
+                                                                    <EventTrigger RoutedEvent="Loaded">
+                                                                        <BeginStoryboard>
+                                                                            <Storyboard RepeatBehavior="Forever">
+                                                                                <DoubleAnimation Storyboard.TargetName="ThrobberSpinnerRotation"
+                                                                                                 Storyboard.TargetProperty="Angle"
+                                                                                                 From="0" To="360" Duration="0:0:0.85"/>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </EventTrigger>
+                                                                </Grid.Triggers>
+                                                                <Ellipse Stroke="#334155" StrokeThickness="2.5" Width="20" Height="20"/>
+                                                                <Path Stroke="{DynamicResource AccentPrimaryBrush}" StrokeThickness="2.5"
+                                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                                      Data="M 11 1 A 10 10 0 0 1 21 11" Width="22" Height="22"/>
+                                                            </Grid>
                                                             <TextBlock Text="Generating Image in SwarmUI..." FontWeight="Bold" FontSize="13"
-                                                                       Foreground="{DynamicResource AccentPrimaryBrush}"/>
+                                                                       Foreground="{DynamicResource AccentPrimaryBrush}" VerticalAlignment="Center"/>
                                                         </StackPanel>
                                                         <TextBlock Text="{Binding ModelName, StringFormat='Model: {0}'}" FontSize="11.5"
                                                                    Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding LorasSummary, StringFormat='LoRAs: {0}'}" FontSize="11"
+                                                                   Foreground="#38BDF8" HorizontalAlignment="Center" Margin="0,3,0,0"
+                                                                   Visibility="{Binding HasLoras, Converter={StaticResource BoolToVis}}"/>
                                                     </StackPanel>
                                                 </Border>
 
@@ -883,6 +906,12 @@
                                                             ToolTip="Click to open full resolution image in viewer">
                                                         <Image Source="{Binding ImagePath}" Stretch="Uniform" StretchDirection="DownOnly"
                                                                RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                    </Border>
+
+                                                    <!-- LoRA Details Badge (if LoRAs were used) -->
+                                                    <Border Background="#1E293B" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left" Margin="0,0,0,6"
+                                                            Visibility="{Binding HasLoras, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="{Binding LorasSummary, StringFormat='🧬 {0}'}" FontSize="10.5" Foreground="#38BDF8"/>
                                                     </Border>
 
                                                     <!-- Prompt Details -->
@@ -932,9 +961,29 @@
 
                                                 <!-- Thinking / Streaming Indicator -->
                                                 <Border Visibility="{Binding IsGenerating, Converter={StaticResource BoolToVis}}" Margin="0,6,0,0">
-                                                    <StackPanel Orientation="Horizontal">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Grid Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                                            <Grid.RenderTransform>
+                                                                <RotateTransform x:Name="TokenSpinnerRotation" Angle="0"/>
+                                                            </Grid.RenderTransform>
+                                                            <Grid.Triggers>
+                                                                <EventTrigger RoutedEvent="Loaded">
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard RepeatBehavior="Forever">
+                                                                            <DoubleAnimation Storyboard.TargetName="TokenSpinnerRotation"
+                                                                                             Storyboard.TargetProperty="Angle"
+                                                                                             From="0" To="360" Duration="0:0:0.85"/>
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </EventTrigger>
+                                                            </Grid.Triggers>
+                                                            <Ellipse Stroke="#334155" StrokeThickness="2" Width="12" Height="12"/>
+                                                            <Path Stroke="{DynamicResource AccentPrimaryBrush}" StrokeThickness="2"
+                                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                                  Data="M 7 1 A 6 6 0 0 1 13 7" Width="14" Height="14"/>
+                                                        </Grid>
                                                         <TextBlock Text="⚡ Generating local tokens..." FontStyle="Italic" FontSize="11.5"
-                                                                   Foreground="{DynamicResource AccentPrimaryBrush}"/>
+                                                                   Foreground="{DynamicResource AccentPrimaryBrush}" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </Border>
 
@@ -1057,6 +1106,17 @@
                                                 <TextBlock Text="{Binding ActiveModelDisplayName}" FontSize="11.5" FontWeight="SemiBold"
                                                            MaxWidth="340" TextTrimming="CharacterEllipsis"/>
                                                 <TextBlock Text=" ⬍" FontSize="10" Foreground="{DynamicResource TextSubtleBrush}" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- LoRA Manager Pill (Image Mode) -->
+                                        <Button Style="{StaticResource OutlineButton}" Padding="8,4" Height="26" Margin="6,0,0,0"
+                                                Command="{Binding ManageLorasCommand}"
+                                                Visibility="{Binding IsImageMode, Converter={StaticResource BoolToVis}}"
+                                                ToolTip="Open LoRA Manager and configure active model weights">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ActiveLorasChipText}" FontSize="11.5" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource AccentPrimaryBrush}"/>
                                             </StackPanel>
                                         </Button>
                                     </StackPanel>
@@ -1295,10 +1355,33 @@
                                                 ToolTip="Set this model as default image model"/>
                                         <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
                                             <TextBlock Text="{Binding SelectedImageModel.Name, FallbackValue='No image model selected'}"
-                                                       FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource WindowForegroundBrush}"
-                                                       TextTrimming="CharacterEllipsis" Margin="0,0,0,2"/>
+                                                        FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource WindowForegroundBrush}"
+                                                        TextTrimming="CharacterEllipsis" Margin="0,0,0,2"/>
                                             <TextBlock Text="{Binding SelectedImageModel.DetailsBadge, FallbackValue='SwarmUI Image Model'}"
-                                                       FontSize="10.5" Foreground="#38BDF8" TextWrapping="Wrap"/>
+                                                        FontSize="10.5" Foreground="#38BDF8" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- Active LoRAs Card in Image Mode -->
+                                <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="6" Padding="8,6"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,6,0,0">
+                                    <DockPanel>
+                                        <Button Style="{StaticResource QuickCopyButton}" Content="Configure"
+                                                DockPanel.Dock="Right" Padding="6,2" FontSize="10.5" VerticalAlignment="Center"
+                                                Command="{Binding ManageLorasCommand}" ToolTip="Open LoRA Manager dialog"/>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <DockPanel>
+                                                <TextBlock Text="🧬 LoRAs:" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                                <TextBlock Text="{Binding ActiveLorasCountText}" FontSize="10.5" FontWeight="Bold"
+                                                           Foreground="{DynamicResource AccentPrimaryBrush}" Margin="4,0,0,0"
+                                                           Visibility="{Binding HasActiveLoras, Converter={StaticResource BoolToVis}}"/>
+                                                <TextBlock Text="None active" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" Margin="4,0,0,0"
+                                                           Visibility="{Binding HasActiveLoras, Converter={StaticResource InvertBoolToVis}}"/>
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding ActiveLorasSummary}" FontSize="10" Foreground="#38BDF8"
+                                                       TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                                                       Visibility="{Binding HasActiveLoras, Converter={StaticResource BoolToVis}}"/>
                                         </StackPanel>
                                     </DockPanel>
                                 </Border>
@@ -1367,6 +1450,22 @@
                                         <TextBlock Text="📁" FontSize="11" Margin="0,0,6,0"/>
                                         <TextBlock Text="Open Swarm Outputs" FontSize="11.5"/>
                                     </StackPanel>
+                                </Button>
+
+                                <Button Style="{StaticResource OutlineButton}" Height="30" Padding="8,0" Margin="0,0,0,6"
+                                        Command="{Binding ManageLorasCommand}"
+                                        ToolTip="Manage LoRA models from X:\SwarmUI\Models\Lora and adjust generation weights">
+                                    <DockPanel HorizontalAlignment="Stretch">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                            <TextBlock Text="🧬" FontSize="11" Margin="0,0,6,0"/>
+                                            <TextBlock Text="Manage LoRAs" FontSize="11.5"/>
+                                        </StackPanel>
+                                        <Border Background="{DynamicResource AccentPrimaryBrush}" CornerRadius="10" Padding="6,1"
+                                                HorizontalAlignment="Right"
+                                                Visibility="{Binding HasActiveLoras, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="{Binding ActiveLorasCountText}" FontSize="10" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                        </Border>
+                                    </DockPanel>
                                 </Button>
                             </StackPanel>
                         </StackPanel>

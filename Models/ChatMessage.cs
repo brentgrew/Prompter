@@ -131,6 +131,23 @@ namespace Prompter.Models
             }
         }
 
+        private string? _lorasSummary;
+        public string? LorasSummary
+        {
+            get => _lorasSummary;
+            set
+            {
+                if (_lorasSummary != value)
+                {
+                    _lorasSummary = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasLoras));
+                }
+            }
+        }
+
+        public bool HasLoras => !string.IsNullOrWhiteSpace(_lorasSummary);
+
         public string ThinkingContent
         {
             get => _thinkingContent;

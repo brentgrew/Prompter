@@ -22,6 +22,7 @@ namespace Prompter.Services
         public int Steps { get; set; } = 50;
         public double Cfg { get; set; } = 7.0;
         public string? ModelName { get; set; }
+        public List<string>? LorasUsed { get; set; }
     }
 
     public class SwarmUiService
@@ -36,6 +37,7 @@ namespace Prompter.Services
         public string BaseUrl { get; set; } = "http://localhost:7801";
         public string SwarmRootPath { get; set; } = @"X:\SwarmUI";
         public string SwarmModelsPath { get; set; } = @"X:\SwarmUI\Models\Stable-Diffusion";
+        public string SwarmLoraPath { get; set; } = @"X:\SwarmUI\Models\Lora";
         public string SwarmOutputPath { get; set; } = @"X:\SwarmUI\Output";
         public string? SwarmExecutablePath { get; set; }
 
@@ -52,6 +54,7 @@ namespace Prompter.Services
             {
                 SwarmRootPath = detected.RootDirectory;
                 SwarmModelsPath = detected.ModelsDirectory ?? Path.Combine(detected.RootDirectory, "Models", "Stable-Diffusion");
+                SwarmLoraPath = Path.Combine(detected.RootDirectory, "Models", "Lora");
                 SwarmOutputPath = detected.OutputDirectory ?? Path.Combine(detected.RootDirectory, "Output");
                 SwarmExecutablePath = detected.ExecutablePath;
             }
@@ -296,9 +299,188 @@ namespace Prompter.Services
                    name.Contains("v1.5", StringComparison.OrdinalIgnoreCase);
         }
 
+        public async Task<List<LoraModelInfo>> ListLorasAsync()
+        {
+            var loras = new Dictionary<string, LoraModelInfo>(StringComparer.OrdinalIgnoreCase);
+
+            // 1. Scan SwarmUI API if running
+            try
+            {
+                var sessionId = await GetSessionIdAsync();
+                if (!string.IsNullOrEmpty(sessionId))
+                {
+                    var payload = new
+                    {
+                        session_id = sessionId,
+                        path = "",
+                        depth = 10,
+                        subtype = "LoRA"
+                    };
+
+                    using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/API/ListModels")
+                    {
+                        Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+                    };
+
+                    using var cts = new CancellationTokenSource(4000);
+                    using var response = await _httpClient.SendAsync(request, cts.Token);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadAsStringAsync(cts.Token);
+                        using var doc = JsonDocument.Parse(json);
+                        if (doc.RootElement.TryGetProperty("files", out var filesArr) && filesArr.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in filesArr.EnumerateArray())
+                            {
+                                var name = item.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                                if (string.IsNullOrEmpty(name) || IsVideoModelName(name)) continue;
+
+                                var title = item.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                                var arch = item.TryGetProperty("architecture", out var a) ? a.GetString() ?? "" : "";
+                                if (string.IsNullOrEmpty(arch) && item.TryGetProperty("class", out var c))
+                                {
+                                    arch = c.GetString() ?? "";
+                                }
+                                var preview = item.TryGetProperty("preview_image", out var p) ? p.GetString() : null;
+                                var trigger = item.TryGetProperty("trigger_phrase", out var tp) ? tp.GetString() : null;
+
+                                var tags = new List<string>();
+                                if (item.TryGetProperty("tags", out var tagsArr) && tagsArr.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var tagItem in tagsArr.EnumerateArray())
+                                    {
+                                        var tv = tagItem.GetString();
+                                        if (!string.IsNullOrEmpty(tv)) tags.Add(tv);
+                                    }
+                                }
+
+                                var cleanRel = name.Replace('\\', '/').TrimStart('/');
+                                var folder = "Root";
+                                var slashIdx = cleanRel.LastIndexOf('/');
+                                if (slashIdx > 0)
+                                {
+                                    folder = cleanRel.Substring(0, slashIdx);
+                                }
+
+                                var topCategory = folder.Split('/')[0];
+                                var localPath = Path.Combine(SwarmLoraPath, cleanRel.Replace('/', '\\'));
+                                long size = 0;
+                                try
+                                {
+                                    if (File.Exists(localPath))
+                                    {
+                                        size = new FileInfo(localPath).Length;
+                                    }
+                                }
+                                catch { }
+
+                                var info = new LoraModelInfo
+                                {
+                                    Id = cleanRel,
+                                    Name = Path.GetFileName(cleanRel),
+                                    Title = !string.IsNullOrWhiteSpace(title) ? title : Path.GetFileNameWithoutExtension(cleanRel),
+                                    FilePath = localPath,
+                                    RelativePath = cleanRel,
+                                    Folder = folder,
+                                    Category = topCategory,
+                                    Architecture = arch,
+                                    PreviewImageUrl = preview,
+                                    TriggerPhrase = trigger,
+                                    Tags = tags,
+                                    SizeBytes = size,
+                                    Strength = 1.0
+                                };
+
+                                loras[cleanRel] = info;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback to disk scan
+            }
+
+            // 2. Scan SwarmLoraPath on disk
+            try
+            {
+                if (Directory.Exists(SwarmLoraPath))
+                {
+                    var opt = new EnumerationOptions
+                    {
+                        RecurseSubdirectories = true,
+                        MaxRecursionDepth = 10,
+                        IgnoreInaccessible = true
+                    };
+
+                    var files = Directory.EnumerateFiles(SwarmLoraPath, "*.*", opt)
+                        .Where(f => f.EndsWith(".safetensors", StringComparison.OrdinalIgnoreCase) ||
+                                    f.EndsWith(".ckpt", StringComparison.OrdinalIgnoreCase) ||
+                                    f.EndsWith(".pt", StringComparison.OrdinalIgnoreCase));
+
+                    foreach (var file in files)
+                    {
+                        var relativeName = Path.GetRelativePath(SwarmLoraPath, file).Replace('\\', '/');
+                        var fileName = Path.GetFileName(file);
+
+                        if (IsVideoModelName(fileName) || IsVideoModelName(relativeName))
+                            continue;
+
+                        if (!loras.ContainsKey(relativeName))
+                        {
+                            var fi = new FileInfo(file);
+                            var folder = "Root";
+                            var slashIdx = relativeName.LastIndexOf('/');
+                            if (slashIdx > 0)
+                            {
+                                folder = relativeName.Substring(0, slashIdx);
+                            }
+                            var topCategory = folder.Split('/')[0];
+
+                            var info = new LoraModelInfo
+                            {
+                                Id = relativeName,
+                                Name = fileName,
+                                Title = Path.GetFileNameWithoutExtension(fileName),
+                                FilePath = file,
+                                RelativePath = relativeName,
+                                Folder = folder,
+                                Category = topCategory,
+                                Architecture = file.Contains("xl", StringComparison.OrdinalIgnoreCase) ? "SDXL" : "SD 1.5",
+                                SizeBytes = fi.Exists ? fi.Length : 0,
+                                Strength = 1.0
+                            };
+
+                            loras[relativeName] = info;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Non-fatal
+            }
+
+            return loras.Values
+                .Where(l => !IsVideoModelName(l.Name) && !IsVideoModelName(l.Folder))
+                .OrderBy(l => l.Folder)
+                .ThenBy(l => l.DisplayTitle)
+                .ToList();
+        }
+
+        public Task<GenerateImageResult> GenerateImageAsync(
+            string prompt,
+            LocalModelInfo model,
+            CancellationToken cancellationToken)
+        {
+            return GenerateImageAsync(prompt, model, null, cancellationToken);
+        }
+
         public async Task<GenerateImageResult> GenerateImageAsync(
             string prompt,
             LocalModelInfo model,
+            IReadOnlyList<LoraModelInfo>? loras,
             CancellationToken cancellationToken)
         {
             var result = new GenerateImageResult
@@ -309,6 +491,11 @@ namespace Prompter.Services
                 Width = model.StandardWidth > 0 ? model.StandardWidth : 1024,
                 Height = model.StandardHeight > 0 ? model.StandardHeight : 1024
             };
+
+            if (loras != null && loras.Count > 0)
+            {
+                result.LorasUsed = loras.Select(l => l.DisplayNameWithWeight).ToList();
+            }
 
             var sessionId = await GetSessionIdAsync();
             if (string.IsNullOrEmpty(sessionId))
@@ -324,17 +511,23 @@ namespace Prompter.Services
                 // steps = 50
                 // cfgscale = 7
                 // width & height = model default
-                var requestPayload = new
+                var requestPayload = new Dictionary<string, object>
                 {
-                    session_id = sessionId,
-                    images = 1,
-                    prompt = prompt,
-                    model = model.ModelId,
-                    steps = 50,
-                    cfgscale = 7,
-                    width = result.Width,
-                    height = result.Height
+                    ["session_id"] = sessionId,
+                    ["images"] = 1,
+                    ["prompt"] = prompt,
+                    ["model"] = model.ModelId,
+                    ["steps"] = 50,
+                    ["cfgscale"] = 7,
+                    ["width"] = result.Width,
+                    ["height"] = result.Height
                 };
+
+                if (loras != null && loras.Count > 0)
+                {
+                    requestPayload["loras"] = loras.Select(l => l.RelativePath).ToList();
+                    requestPayload["loraweights"] = loras.Select(l => l.Strength.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)).ToList();
+                }
 
                 var jsonContent = new StringContent(
                     JsonSerializer.Serialize(requestPayload),

@@ -93,6 +93,19 @@ namespace Prompter.ViewModels
             OpenImageFileCommand = new RelayCommand(p => OpenImageFile(p as string));
             ShowImageInFolderCommand = new RelayCommand(p => ShowImageInFolder(p as string));
             SetDefaultModelCommand = new RelayCommand(p => ExecuteSetDefaultModel(p as LocalModelInfo));
+            ManageLorasCommand = new RelayCommand(ExecuteManageLoras);
+            RemoveActiveLoraCommand = new RelayCommand<LoraModelInfo>(ExecuteRemoveActiveLora);
+            ClearActiveLorasCommand = new RelayCommand(ExecuteClearActiveLoras, () => ActiveLoras.Count > 0);
+
+            ActiveLoras.CollectionChanged += (s, e) =>
+            {
+                OnPropertyChanged(nameof(HasActiveLoras));
+                OnPropertyChanged(nameof(ActiveLorasCount));
+                OnPropertyChanged(nameof(ActiveLorasCountText));
+                OnPropertyChanged(nameof(ActiveLorasChipText));
+                OnPropertyChanged(nameof(ActiveLorasSummary));
+                ClearActiveLorasCommand.RaiseCanExecuteChanged();
+            };
 
             ThemeService.Instance.ThemeChanged += _ =>
             {
@@ -118,6 +131,13 @@ namespace Prompter.ViewModels
         public ObservableCollection<LocalModelInfo> AvailableModels { get; } = new();
         public ObservableCollection<LocalModelInfo> AvailableChatModels { get; } = new();
         public ObservableCollection<LocalModelInfo> AvailableImageModels { get; } = new();
+        public ObservableCollection<LoraModelInfo> ActiveLoras { get; } = new();
+
+        public bool HasActiveLoras => ActiveLoras.Count > 0;
+        public int ActiveLorasCount => ActiveLoras.Count;
+        public string ActiveLorasCountText => $"{ActiveLoras.Count} active";
+        public string ActiveLorasChipText => HasActiveLoras ? $"🧬 {ActiveLoras.Count} LoRA{(ActiveLoras.Count == 1 ? "" : "s")}" : "🧬 LoRAs";
+        public string ActiveLorasSummary => string.Join(", ", ActiveLoras.Select(l => l.DisplayNameWithWeight));
 
         public PromptFolder? SelectedFolder
         {
@@ -446,6 +466,9 @@ namespace Prompter.ViewModels
         public RelayCommand OpenImageFileCommand { get; }
         public RelayCommand ShowImageInFolderCommand { get; }
         public RelayCommand SetDefaultModelCommand { get; }
+        public RelayCommand ManageLorasCommand { get; }
+        public RelayCommand<LoraModelInfo> RemoveActiveLoraCommand { get; }
+        public RelayCommand ClearActiveLorasCommand { get; }
 
         public string ThemeToggleIcon => ThemeService.Instance.CurrentTheme == AppTheme.Dark ? "☀️" : "🌙";
         public string ThemeToggleText => ThemeService.Instance.CurrentTheme == AppTheme.Dark ? "Light" : "Dark";
@@ -896,6 +919,9 @@ namespace Prompter.ViewModels
                 ChatMessages.Add(userMsg);
                 ChatInputText = string.Empty;
 
+                var activeLorasCopy = ActiveLoras.ToList();
+                var lorasSummary = activeLorasCopy.Count > 0 ? string.Join(", ", activeLorasCopy.Select(l => l.DisplayNameWithWeight)) : null;
+
                 // Add assistant image loading bubble with throbber overlay
                 var assistantMsg = new ChatMessage("Assistant", string.Empty, SelectedImageModel.Name)
                 {
@@ -904,7 +930,8 @@ namespace Prompter.ViewModels
                     ImagePrompt = cleanText,
                     ImageDimensions = $"{SelectedImageModel.StandardWidth}×{SelectedImageModel.StandardHeight}",
                     ImageSteps = 50,
-                    ImageCfg = 7.0
+                    ImageCfg = 7.0,
+                    LorasSummary = lorasSummary
                 };
                 ChatMessages.Add(assistantMsg);
 
@@ -914,7 +941,7 @@ namespace Prompter.ViewModels
 
                 try
                 {
-                    var result = await _swarmUiService.GenerateImageAsync(cleanText, SelectedImageModel, _chatCts.Token);
+                    var result = await _swarmUiService.GenerateImageAsync(cleanText, SelectedImageModel, activeLorasCopy, _chatCts.Token);
                     Application.Current?.Dispatcher.Invoke(() =>
                     {
                         assistantMsg.IsImageLoading = false;
@@ -1074,6 +1101,40 @@ namespace Prompter.ViewModels
             ActiveMode = "Image";
             ChatInputText = clean;
             ExecuteSendChatMessage();
+        }
+
+        public void ExecuteManageLoras()
+        {
+            var dlg = new Views.LoraManagerDialog(ActiveLoras, _swarmUiService)
+            {
+                Owner = Application.Current?.MainWindow
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                ActiveLoras.Clear();
+                foreach (var lora in dlg.ViewModel.ActiveLoras)
+                {
+                    ActiveLoras.Add(lora);
+                }
+                ShowStatus(ActiveLoras.Count > 0
+                    ? $"✓ Active LoRAs updated: {ActiveLoras.Count} active"
+                    : "✓ Active LoRAs cleared");
+            }
+        }
+
+        public void ExecuteRemoveActiveLora(LoraModelInfo? lora)
+        {
+            if (lora != null)
+            {
+                ActiveLoras.Remove(lora);
+            }
+        }
+
+        public void ExecuteClearActiveLoras()
+        {
+            ActiveLoras.Clear();
+            ShowStatus("✓ Cleared all active LoRAs");
         }
 
         public void DeleteChatMessage(ChatMessage msg)

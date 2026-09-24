@@ -39,4 +39,47 @@ namespace Prompter.ViewModels
             CommandManager.InvalidateRequerySuggested();
         }
     }
+
+    public class RelayCommand<T> : ICommand
+    {
+        private readonly Action<T?> _execute;
+        private readonly Predicate<T?>? _canExecute;
+
+        public RelayCommand(Action<T?> execute, Predicate<T?>? canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public RelayCommand(Action<T?> execute, Func<bool>? canExecute)
+            : this(execute, canExecute == null ? null : _ => canExecute())
+        {
+        }
+
+        public bool CanExecute(object? parameter)
+        {
+            if (parameter == null && typeof(T).IsValueType)
+                return _canExecute?.Invoke(default) ?? true;
+            return _canExecute?.Invoke((T?)parameter) ?? true;
+        }
+
+        public void Execute(object? parameter)
+        {
+            if (parameter == null && typeof(T).IsValueType)
+                _execute(default);
+            else
+                _execute((T?)parameter);
+        }
+
+        public event EventHandler? CanExecuteChanged
+        {
+            add => CommandManager.RequerySuggested += value;
+            remove => CommandManager.RequerySuggested -= value;
+        }
+
+        public void RaiseCanExecuteChanged()
+        {
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
 }

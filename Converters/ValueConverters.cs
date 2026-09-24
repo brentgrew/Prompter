@@ -39,4 +39,22 @@ namespace Prompter.Converters
             throw new NotSupportedException();
         }
     }
+
+    public class CountToVisibilityConverter : IValueConverter
+    {
+        public bool Invert { get; set; }
+
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            var count = value is int i ? i : 0;
+            var isVisible = count > 0;
+            if (Invert) isVisible = !isVisible;
+            return isVisible ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
 }

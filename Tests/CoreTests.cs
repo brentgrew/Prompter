@@ -844,4 +844,236 @@ namespace Prompter.Tests
             Assert.AreEqual(string.Empty, MainViewModel.CleanPrompt("   "));
         }
     }
+
+    [TestClass]
+    public class LoraTests
+    {
+        [TestMethod]
+        public void TestLoraModelInfoPropertiesAndClamping()
+        {
+            var lora = new LoraModelInfo
+            {
+                Id = "C/Wowifier XL.safetensors",
+                Name = "Wowifier XL.safetensors",
+                Title = "Wowifier XL",
+                Folder = "C",
+                Architecture = "stable-diffusion-xl-v1-base/lora",
+                SizeBytes = 456522350
+            };
+
+            // Default strength
+            Assert.AreEqual(1.0, lora.Strength, 0.001);
+            Assert.AreEqual("1.00", lora.StrengthFormatted);
+            Assert.AreEqual("SDXL", lora.ArchitectureBadge);
+            Assert.IsTrue(lora.IsSdxl);
+            Assert.AreEqual("Wowifier XL (1.00)", lora.DisplayNameWithWeight);
+            Assert.AreEqual("435 MB", lora.SizeFormatted);
+
+            // Strength adjustment
+            lora.Strength = 0.85;
+            Assert.AreEqual(0.85, lora.Strength, 0.001);
+            Assert.AreEqual("0.85", lora.StrengthFormatted);
+            Assert.AreEqual("Wowifier XL (0.85)", lora.DisplayNameWithWeight);
+
+            // Two-way formatted string
+            lora.StrengthFormatted = "1.25";
+            Assert.AreEqual(1.25, lora.Strength, 0.001);
+
+            // Clamping range [-2.0, 2.0]
+            lora.Strength = 5.0;
+            Assert.AreEqual(2.0, lora.Strength, 0.001);
+
+            lora.Strength = -10.0;
+            Assert.AreEqual(-2.0, lora.Strength, 0.001);
+        }
+
+        [TestMethod]
+        public void TestLoraManagerViewModelDualListManagement()
+        {
+            var vm = new LoraManagerViewModel();
+
+            var lora1 = new LoraModelInfo
+            {
+                Id = "C/Detailer.safetensors",
+                Name = "Detailer.safetensors",
+                Title = "Detailer",
+                RelativePath = "C/Detailer.safetensors",
+                Folder = "C",
+                Strength = 1.0
+            };
+
+            var lora2 = new LoraModelInfo
+            {
+                Id = "SD/Styles/Anime.safetensors",
+                Name = "Anime.safetensors",
+                Title = "Anime Style",
+                RelativePath = "SD/Styles/Anime.safetensors",
+                Folder = "SD/Styles",
+                Strength = 1.0
+            };
+
+            vm.AvailableLoras.Add(lora1);
+            vm.AvailableLoras.Add(lora2);
+
+            Assert.IsFalse(vm.HasActiveLoras);
+            Assert.AreEqual(0, vm.ActiveCount);
+
+            // Add lora1 from Available (Column B) to Active (Column A)
+            vm.AddLora(lora1);
+            Assert.IsTrue(vm.HasActiveLoras);
+            Assert.AreEqual(1, vm.ActiveCount);
+            Assert.AreEqual("C/Detailer.safetensors", vm.ActiveLoras[0].RelativePath);
+
+            // Duplicate prevention
+            vm.AddLora(lora1);
+            Assert.AreEqual(1, vm.ActiveCount);
+
+            // Add second LoRA
+            vm.AddLora(lora2);
+            Assert.AreEqual(2, vm.ActiveCount);
+
+            // Remove lora1
+            vm.RemoveLora(vm.ActiveLoras[0]);
+            Assert.AreEqual(1, vm.ActiveCount);
+            Assert.AreEqual("SD/Styles/Anime.safetensors", vm.ActiveLoras[0].RelativePath);
+
+            // Clear all
+            vm.ClearAllActive();
+            Assert.IsFalse(vm.HasActiveLoras);
+            Assert.AreEqual(0, vm.ActiveCount);
+        }
+
+        [TestMethod]
+        public void TestLoraManagerViewModelFilteringAndSearch()
+        {
+            var vm = new LoraManagerViewModel();
+
+            vm.AvailableLoras.Add(new LoraModelInfo
+            {
+                Id = "1",
+                Name = "Cyberpunk_Streets.safetensors",
+                Title = "Cyberpunk Streets",
+                Folder = "SD/Styles",
+                Category = "SD",
+                TriggerPhrase = "cyberpunk neon lights"
+            });
+
+            vm.AvailableLoras.Add(new LoraModelInfo
+            {
+                Id = "2",
+                Name = "Watercolor_Portrait.safetensors",
+                Title = "Watercolor Portrait",
+                Folder = "SD/Styles",
+                Category = "SD",
+                TriggerPhrase = "watercolor painting"
+            });
+
+            vm.AvailableLoras.Add(new LoraModelInfo
+            {
+                Id = "3",
+                Name = "Detailer.safetensors",
+                Title = "Face Detailer",
+                Folder = "C",
+                Category = "C"
+            });
+
+            vm.AvailableLorasView.Refresh();
+            Assert.AreEqual(3, vm.FilteredAvailableCount);
+
+            // Search by Title
+            vm.SearchText = "Cyber";
+            Assert.AreEqual(1, vm.FilteredAvailableCount);
+
+            // Search by Trigger Phrase
+            vm.SearchText = "watercolor";
+            Assert.AreEqual(1, vm.FilteredAvailableCount);
+
+            // Clear search
+            vm.SearchText = "";
+            Assert.AreEqual(3, vm.FilteredAvailableCount);
+
+            // Filter by Folder
+            vm.SelectedFolder = "C";
+            Assert.AreEqual(1, vm.FilteredAvailableCount);
+
+            vm.SelectedFolder = "SD/Styles";
+            Assert.AreEqual(2, vm.FilteredAvailableCount);
+
+            vm.SelectedFolder = "All Folders";
+            Assert.AreEqual(3, vm.FilteredAvailableCount);
+        }
+
+        [TestMethod]
+        public async Task TestSwarmUiDiskLoraScanFiltersVideoAndWan()
+        {
+            var tempLoraDir = Path.Combine(Path.GetTempPath(), $"prompter_lora_test_{Guid.NewGuid():N}");
+            try
+            {
+                Directory.CreateDirectory(Path.Combine(tempLoraDir, "SD", "Styles"));
+                Directory.CreateDirectory(Path.Combine(tempLoraDir, "C"));
+                Directory.CreateDirectory(Path.Combine(tempLoraDir, "WAN", "Video"));
+                Directory.CreateDirectory(Path.Combine(tempLoraDir, "NSFW", "WAN"));
+
+                File.WriteAllText(Path.Combine(tempLoraDir, "SD", "Styles", "Retro_Anime.safetensors"), "dummy");
+                File.WriteAllText(Path.Combine(tempLoraDir, "C", "Super_Detailer.safetensors"), "dummy");
+                File.WriteAllText(Path.Combine(tempLoraDir, "WAN", "Video", "wan2.1_motion.safetensors"), "dummy");
+                File.WriteAllText(Path.Combine(tempLoraDir, "NSFW", "WAN", "wan_t2v_action.safetensors"), "dummy");
+
+                var swarmService = new SwarmUiService
+                {
+                    SwarmLoraPath = tempLoraDir,
+                    BaseUrl = "http://localhost:9999" // Unreachable port to force disk scan fallback
+                };
+
+                var loras = await swarmService.ListLorasAsync();
+
+                Assert.HasCount(2, loras);
+                Assert.IsTrue(loras.Any(l => l.Name.Equals("Retro_Anime.safetensors", StringComparison.OrdinalIgnoreCase)));
+                Assert.IsTrue(loras.Any(l => l.Name.Equals("Super_Detailer.safetensors", StringComparison.OrdinalIgnoreCase)));
+
+                // Assert video/wan models are filtered out
+                Assert.IsFalse(loras.Any(l => l.Name.Contains("wan", StringComparison.OrdinalIgnoreCase)));
+                Assert.IsFalse(loras.Any(l => l.Folder.Contains("wan", StringComparison.OrdinalIgnoreCase)));
+            }
+            finally
+            {
+                if (Directory.Exists(tempLoraDir))
+                {
+                    try { Directory.Delete(tempLoraDir, true); } catch { }
+                }
+            }
+        }
+
+        [TestMethod]
+        public void TestMainViewModelActiveLorasPropertiesAndCommands()
+        {
+            var vm = new MainViewModel();
+
+            Assert.IsFalse(vm.HasActiveLoras);
+            Assert.AreEqual(0, vm.ActiveLorasCount);
+            Assert.AreEqual("🧬 LoRAs", vm.ActiveLorasChipText);
+
+            var lora = new LoraModelInfo
+            {
+                Id = "C/Wowifier.safetensors",
+                Name = "Wowifier.safetensors",
+                Title = "Wowifier",
+                RelativePath = "C/Wowifier.safetensors",
+                Strength = 0.80
+            };
+
+            vm.ActiveLoras.Add(lora);
+
+            Assert.IsTrue(vm.HasActiveLoras);
+            Assert.AreEqual(1, vm.ActiveLorasCount);
+            Assert.AreEqual("1 active", vm.ActiveLorasCountText);
+            Assert.AreEqual("🧬 1 LoRA", vm.ActiveLorasChipText);
+            Assert.AreEqual("Wowifier (0.80)", vm.ActiveLorasSummary);
+
+            // Remove active LoRA via command
+            vm.RemoveActiveLoraCommand.Execute(lora);
+            Assert.IsFalse(vm.HasActiveLoras);
+            Assert.AreEqual(0, vm.ActiveLorasCount);
+        }
+    }
 }
