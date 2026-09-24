@@ -25,7 +25,6 @@ namespace Prompter
             DataContext = ViewModel;
 
             SourceInitialized += MainWindow_SourceInitialized;
-            StateChanged += MainWindow_StateChanged;
             Closing += MainWindow_Closing;
 
             // Auto-scroll chat conversation smoothly when new tokens/messages arrive
@@ -86,23 +85,14 @@ namespace Prompter
             Focus();
         }
 
-        private void MainWindow_StateChanged(object? sender, EventArgs e)
-        {
-            if (WindowState == WindowState.Minimized)
-            {
-                Hide();
-                _trayService?.ShowFirstMinimizeNotification();
-            }
-        }
-
         private void MainWindow_Closing(object? sender, CancelEventArgs e)
         {
             if (!_isExplicitExit)
             {
-                // Minimize to tray instead of quitting
+                // Close button minimizes Prompter to the system tray instead of quitting
                 e.Cancel = true;
                 Hide();
-                _trayService?.ShowFirstMinimizeNotification();
+                _trayService?.ShowFirstCloseToTrayNotification();
                 return;
             }
 

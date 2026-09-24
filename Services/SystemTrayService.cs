@@ -236,14 +236,16 @@ namespace Prompter.Services
             Shell_NotifyIconW(NIM_MODIFY, ref nid);
         }
 
-        public void ShowFirstMinimizeNotification()
+        public void ShowFirstCloseToTrayNotification()
         {
             if (!_hasShownBalloon)
             {
                 _hasShownBalloon = true;
-                ShowNotification("Prompter is running in system tray", "Click the tray icon or press the Pause/Break key anytime to bring Prompter up.");
+                ShowNotification("Prompter is running in system tray", "Prompter has been minimized to the system tray. Click the tray icon or press Pause/Break to bring Prompter up, or right-click to exit.");
             }
         }
+
+        public void ShowFirstMinimizeNotification() => ShowFirstCloseToTrayNotification();
 
         public void BringWindowToFront()
         {

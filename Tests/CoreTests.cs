@@ -1484,5 +1484,36 @@ namespace Prompter.Tests
 
             Assert.AreEqual(123456789L, result.Seed);
         }
+
+        [TestMethod]
+        public void TestSystemTray_ShowFirstCloseToTrayNotification_CanBeInvokedSafely()
+        {
+            Exception? caughtException = null;
+            var thread = new System.Threading.Thread(() =>
+            {
+                try
+                {
+                    if (System.Windows.Application.Current == null)
+                    {
+                        _ = new System.Windows.Application();
+                    }
+
+                    var win = new System.Windows.Window();
+                    var vm = new MainViewModel();
+                    var tray = new SystemTrayService(win, vm);
+                    tray.ShowFirstCloseToTrayNotification();
+                    tray.ShowFirstMinimizeNotification();
+                }
+                catch (Exception ex)
+                {
+                    caughtException = ex;
+                }
+            });
+            thread.SetApartmentState(System.Threading.ApartmentState.STA);
+            thread.Start();
+            thread.Join();
+
+            Assert.IsNull(caughtException, caughtException?.ToString());
+        }
     }
 }
