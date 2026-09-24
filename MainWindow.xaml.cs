@@ -44,6 +44,8 @@ namespace Prompter
                     }
                 }, System.Windows.Threading.DispatcherPriority.Background);
             };
+
+            DataObject.AddPastingHandler(txtChatInput, TxtChatInput_Pasting);
         }
 
         private void MainWindow_SourceInitialized(object? sender, EventArgs e)
@@ -329,6 +331,57 @@ namespace Prompter
             {
                 ViewModel.OpenImageFile(message.ImagePath);
                 e.Handled = true;
+            }
+        }
+
+        private void CopySeed_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement elem)
+            {
+                long? seed = null;
+                if (elem.Tag is long l) seed = l;
+                else if (elem.Tag is string s && long.TryParse(s, out var parsed)) seed = parsed;
+
+                if (seed.HasValue)
+                {
+                    Clipboard.SetText(seed.Value.ToString());
+                    ViewModel.ShowStatus($"✓ Copied Seed {seed.Value} to clipboard!");
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void UseSeed_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement elem)
+            {
+                long? seed = null;
+                if (elem.Tag is long l) seed = l;
+                else if (elem.Tag is string s && long.TryParse(s, out var parsed)) seed = parsed;
+
+                if (seed.HasValue)
+                {
+                    ViewModel.ApplySeed(seed.Value);
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void TxtChatInput_Pasting(object sender, DataObjectPastingEventArgs e)
+        {
+            if (e.DataObject.GetDataPresent(DataFormats.UnicodeText))
+            {
+                var rawText = e.DataObject.GetData(DataFormats.UnicodeText) as string;
+                if (!string.IsNullOrEmpty(rawText))
+                {
+                    var cleaned = MainViewModel.StripLeadingPromptPrefix(rawText);
+                    if (cleaned != rawText)
+                    {
+                        var dataObj = new DataObject();
+                        dataObj.SetData(DataFormats.UnicodeText, cleaned);
+                        e.DataObject = dataObj;
+                    }
+                }
             }
         }
 

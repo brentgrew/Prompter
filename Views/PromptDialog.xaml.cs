@@ -71,7 +71,7 @@ namespace Prompter.Views
             }
 
             PromptTitle = title;
-            PromptContent = txtContent.Text ?? string.Empty;
+            PromptContent = ViewModels.MainViewModel.CleanPrompt(txtContent.Text);
 
             DialogResult = true;
             Close();

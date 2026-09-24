@@ -1363,4 +1363,126 @@ namespace Prompter.Tests
             Assert.AreEqual(string.Empty, vm.IncompatibleLorasWarningText);
         }
     }
+
+    [TestClass]
+    public class PromptPrefixAndSeedManagementTests
+    {
+        [TestMethod]
+        public void TestStripLeadingPromptPrefix_RemovesBoldPromptPrefix()
+        {
+            var input = "**Prompt:**\n\nA beautiful cinematic photograph of a mountain range at dawn.";
+            var cleaned = MainViewModel.StripLeadingPromptPrefix(input);
+            Assert.AreEqual("A beautiful cinematic photograph of a mountain range at dawn.", cleaned);
+        }
+
+        [TestMethod]
+        public void TestStripLeadingPromptPrefix_RemovesVariousPrefixFormats()
+        {
+            Assert.AreEqual("A sunset over the ocean.", MainViewModel.StripLeadingPromptPrefix("**Prompt**: A sunset over the ocean."));
+            Assert.AreEqual("A sunset over the ocean.", MainViewModel.StripLeadingPromptPrefix("Prompt: A sunset over the ocean."));
+            Assert.AreEqual("A sunset over the ocean.", MainViewModel.StripLeadingPromptPrefix("### Prompt:\n\nA sunset over the ocean."));
+            Assert.AreEqual("A sunset over the ocean.", MainViewModel.StripLeadingPromptPrefix("**Image Prompt:** A sunset over the ocean."));
+            Assert.AreEqual("A sunset over the ocean.", MainViewModel.StripLeadingPromptPrefix("image prompt: A sunset over the ocean."));
+            Assert.AreEqual("A sunset over the ocean.", MainViewModel.StripLeadingPromptPrefix("Positive Prompt: A sunset over the ocean."));
+            Assert.AreEqual("A sunset over the ocean.", MainViewModel.StripLeadingPromptPrefix("### Prompt:\n\n**Prompt:** A sunset over the ocean."));
+        }
+
+        [TestMethod]
+        public void TestStripLeadingPromptPrefix_DoesNotAffectLegitimateWordsStartingWithPrompt()
+        {
+            var legitimate = "Prompting techniques for large language models are evolving.";
+            Assert.AreEqual(legitimate, MainViewModel.StripLeadingPromptPrefix(legitimate));
+
+            var regular = "A prompt engineer working on diffusion pipelines.";
+            Assert.AreEqual(regular, MainViewModel.StripLeadingPromptPrefix(regular));
+        }
+
+        [TestMethod]
+        public void TestCleanPrompt_HandlesFencesQuotesAndPrefixes()
+        {
+            var raw = "\"**Prompt:** A futuristic cyberpunk skyline in 8k resolution.\"";
+            var cleaned = MainViewModel.CleanPrompt(raw);
+            Assert.AreEqual("A futuristic cyberpunk skyline in 8k resolution.", cleaned);
+        }
+
+        [TestMethod]
+        public void TestChatInputText_AutoCleansLeadingPrefixes()
+        {
+            var vm = new MainViewModel();
+            vm.ChatInputText = "**Prompt:**\n\nA golden retriever playing in autumn leaves";
+            Assert.AreEqual("A golden retriever playing in autumn leaves", vm.ChatInputText);
+        }
+
+        [TestMethod]
+        public void TestSeedManagement_InitialStateIsRandom()
+        {
+            var vm = new MainViewModel();
+            Assert.IsTrue(vm.IsRandomSeed);
+            Assert.AreEqual(-1L, vm.CurrentSeed);
+            Assert.AreEqual("🎲 Random", vm.SeedDisplayBadge);
+            Assert.AreEqual("🌱 Seed: 🎲", vm.ActiveSeedChipText);
+        }
+
+        [TestMethod]
+        public void TestSeedManagement_SetCustomSeedInputText()
+        {
+            var vm = new MainViewModel();
+            vm.SeedInputText = "42";
+
+            Assert.IsFalse(vm.IsRandomSeed);
+            Assert.AreEqual(42L, vm.CurrentSeed);
+            Assert.AreEqual("42", vm.SeedDisplayBadge);
+            Assert.AreEqual("🌱 42", vm.ActiveSeedChipText);
+
+            // Reverting to -1 or random
+            vm.SeedInputText = "-1";
+            Assert.IsTrue(vm.IsRandomSeed);
+            Assert.AreEqual(-1L, vm.CurrentSeed);
+            Assert.AreEqual("🎲 Random", vm.SeedDisplayBadge);
+        }
+
+        [TestMethod]
+        public void TestSeedManagement_ApplySeedAndRollSeed()
+        {
+            var vm = new MainViewModel();
+            vm.ApplySeed(987654321L);
+
+            Assert.IsFalse(vm.IsRandomSeed);
+            Assert.AreEqual(987654321L, vm.CurrentSeed);
+            Assert.AreEqual("987654321", vm.SeedInputText);
+
+            vm.RollRandomSeedCommand.Execute(null);
+            Assert.IsFalse(vm.IsRandomSeed);
+            Assert.IsTrue(vm.CurrentSeed > 0);
+            Assert.AreEqual(vm.CurrentSeed.ToString(), vm.SeedInputText);
+        }
+
+        [TestMethod]
+        public void TestChatMessage_ImageSeedProperty()
+        {
+            var msg = new ChatMessage("Assistant", "Photo", "SDXL")
+            {
+                IsImageMessage = true
+            };
+
+            Assert.IsFalse(msg.HasSeed);
+            Assert.IsNull(msg.ImageSeed);
+
+            msg.ImageSeed = 133742L;
+            Assert.IsTrue(msg.HasSeed);
+            Assert.AreEqual(133742L, msg.ImageSeed);
+        }
+
+        [TestMethod]
+        public void TestSwarmUiService_GenerateImageResult_IncludesSeed()
+        {
+            var result = new GenerateImageResult
+            {
+                Success = true,
+                Seed = 123456789L
+            };
+
+            Assert.AreEqual(123456789L, result.Seed);
+        }
+    }
 }

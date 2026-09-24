@@ -45,6 +45,11 @@ namespace Prompter.ViewModels
         private bool _isSwarmConnected;
         private string _activeTaskStatus = string.Empty;
 
+        // Seed controls for SwarmUI Image Generation
+        private long _currentSeed = -1;
+        private bool _isRandomSeed = true;
+        private string _seedInputText = "-1";
+
         public MainViewModel()
         {
             _storageService = new StorageService();
@@ -96,6 +101,7 @@ namespace Prompter.ViewModels
             ManageLorasCommand = new RelayCommand(ExecuteManageLoras);
             RemoveActiveLoraCommand = new RelayCommand<LoraModelInfo>(ExecuteRemoveActiveLora);
             ClearActiveLorasCommand = new RelayCommand(ExecuteClearActiveLoras, () => ActiveLoras.Count > 0);
+            RollRandomSeedCommand = new RelayCommand(ExecuteRollRandomSeed);
 
             ActiveLoras.CollectionChanged += (s, e) =>
             {
@@ -337,14 +343,99 @@ namespace Prompter.ViewModels
             get => _chatInputText;
             set
             {
-                if (_chatInputText != value)
+                var cleaned = StripLeadingPromptPrefix(value);
+                if (_chatInputText != cleaned)
                 {
-                    _chatInputText = value;
+                    _chatInputText = cleaned;
                     OnPropertyChanged();
                     SendChatMessageCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
+
+        public bool IsRandomSeed
+        {
+            get => _isRandomSeed;
+            set
+            {
+                if (_isRandomSeed != value)
+                {
+                    _isRandomSeed = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(SeedDisplayBadge));
+                    OnPropertyChanged(nameof(ActiveSeedChipText));
+                    if (_isRandomSeed)
+                    {
+                        _seedInputText = "-1";
+                        _currentSeed = -1;
+                        OnPropertyChanged(nameof(SeedInputText));
+                        OnPropertyChanged(nameof(CurrentSeed));
+                    }
+                    else
+                    {
+                        if (_currentSeed < 0)
+                        {
+                            _currentSeed = Random.Shared.Next(10000000, 99999999);
+                            _seedInputText = _currentSeed.ToString();
+                            OnPropertyChanged(nameof(SeedInputText));
+                            OnPropertyChanged(nameof(CurrentSeed));
+                        }
+                    }
+                }
+            }
+        }
+
+        public string SeedInputText
+        {
+            get => _seedInputText;
+            set
+            {
+                if (_seedInputText != value)
+                {
+                    _seedInputText = value;
+                    OnPropertyChanged();
+
+                    if (string.IsNullOrWhiteSpace(value) || value.Trim() == "-1" || string.Equals(value.Trim(), "random", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _currentSeed = -1;
+                        _isRandomSeed = true;
+                        OnPropertyChanged(nameof(CurrentSeed));
+                        OnPropertyChanged(nameof(IsRandomSeed));
+                        OnPropertyChanged(nameof(SeedDisplayBadge));
+                        OnPropertyChanged(nameof(ActiveSeedChipText));
+                    }
+                    else if (long.TryParse(value.Trim(), out var parsed) && parsed >= 0)
+                    {
+                        _currentSeed = parsed;
+                        _isRandomSeed = false;
+                        OnPropertyChanged(nameof(CurrentSeed));
+                        OnPropertyChanged(nameof(IsRandomSeed));
+                        OnPropertyChanged(nameof(SeedDisplayBadge));
+                        OnPropertyChanged(nameof(ActiveSeedChipText));
+                    }
+                }
+            }
+        }
+
+        public long CurrentSeed
+        {
+            get => _currentSeed;
+            set
+            {
+                if (_currentSeed != value)
+                {
+                    _currentSeed = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(SeedDisplayBadge));
+                    OnPropertyChanged(nameof(ActiveSeedChipText));
+                }
+            }
+        }
+
+        public string SeedDisplayBadge => IsRandomSeed ? "🎲 Random" : $"{CurrentSeed}";
+        public string ActiveSeedChipText => IsRandomSeed ? "🌱 Seed: 🎲" : $"🌱 {CurrentSeed}";
+
+        public RelayCommand RollRandomSeedCommand { get; }
 
         public bool IsChatGenerating
         {
@@ -984,6 +1075,10 @@ namespace Prompter.ViewModels
                 var activeLorasCopy = ActiveLoras.ToList();
                 var lorasSummary = activeLorasCopy.Count > 0 ? string.Join(", ", activeLorasCopy.Select(l => l.DisplayNameWithWeight)) : null;
 
+                long effectiveSeed = IsRandomSeed
+                    ? Random.Shared.NextInt64(1, 2147483647L)
+                    : (CurrentSeed >= 0 ? CurrentSeed : Random.Shared.NextInt64(1, 2147483647L));
+
                 // Add assistant image loading bubble with throbber overlay
                 var assistantMsg = new ChatMessage("Assistant", string.Empty, SelectedImageModel.Name)
                 {
@@ -993,6 +1088,7 @@ namespace Prompter.ViewModels
                     ImageDimensions = $"{SelectedImageModel.StandardWidth}×{SelectedImageModel.StandardHeight}",
                     ImageSteps = 50,
                     ImageCfg = 7.0,
+                    ImageSeed = effectiveSeed,
                     LorasSummary = lorasSummary
                 };
                 ChatMessages.Add(assistantMsg);
@@ -1003,7 +1099,7 @@ namespace Prompter.ViewModels
 
                 try
                 {
-                    var result = await _swarmUiService.GenerateImageAsync(cleanText, SelectedImageModel, activeLorasCopy, _chatCts.Token);
+                    var result = await _swarmUiService.GenerateImageAsync(cleanText, SelectedImageModel, activeLorasCopy, effectiveSeed, _chatCts.Token);
                     Application.Current?.Dispatcher.Invoke(() =>
                     {
                         assistantMsg.IsImageLoading = false;
@@ -1015,6 +1111,7 @@ namespace Prompter.ViewModels
                             assistantMsg.ImageDimensions = $"{result.Width}×{result.Height}";
                             assistantMsg.ImageSteps = result.Steps;
                             assistantMsg.ImageCfg = result.Cfg;
+                            assistantMsg.ImageSeed = result.Seed ?? effectiveSeed;
                             assistantMsg.Content = cleanText;
                             ShowStatus("✓ SwarmUI image generated successfully!");
                         }
@@ -1158,6 +1255,41 @@ namespace Prompter.ViewModels
             ActiveMode = "Image";
             ChatInputText = clean;
             ExecuteSendChatMessage();
+        }
+
+        private void ExecuteRollRandomSeed()
+        {
+            var newSeed = (long)Random.Shared.Next(10000000, 99999999);
+            _currentSeed = newSeed;
+            _seedInputText = newSeed.ToString();
+            _isRandomSeed = false;
+            OnPropertyChanged(nameof(CurrentSeed));
+            OnPropertyChanged(nameof(SeedInputText));
+            OnPropertyChanged(nameof(IsRandomSeed));
+            OnPropertyChanged(nameof(SeedDisplayBadge));
+            OnPropertyChanged(nameof(ActiveSeedChipText));
+            ShowStatus($"🎲 Rolled new seed: {newSeed}");
+        }
+
+        public void ApplySeed(long seed)
+        {
+            if (seed < 0)
+            {
+                IsRandomSeed = true;
+                ShowStatus("🎲 Set seed to Random for next generation");
+            }
+            else
+            {
+                _currentSeed = seed;
+                _seedInputText = seed.ToString();
+                _isRandomSeed = false;
+                OnPropertyChanged(nameof(CurrentSeed));
+                OnPropertyChanged(nameof(SeedInputText));
+                OnPropertyChanged(nameof(IsRandomSeed));
+                OnPropertyChanged(nameof(SeedDisplayBadge));
+                OnPropertyChanged(nameof(ActiveSeedChipText));
+                ShowStatus($"✓ Applied seed {seed} for next image");
+            }
         }
 
         public void ExecuteManageLoras()
@@ -1342,6 +1474,89 @@ namespace Prompter.ViewModels
             ShowStatus("✏️ Prompt loaded into editor");
         }
 
+        public static string StripLeadingPromptPrefix(string? text)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+
+            var result = text;
+
+            while (true)
+            {
+                var trimmedLeading = result.TrimStart();
+                if (trimmedLeading.Length == 0) return string.Empty;
+
+                var lower = trimmedLeading.ToLowerInvariant();
+
+                string? matchedPrefix = null;
+                string[] knownPrefixes = new[]
+                {
+                    "**prompt:**",
+                    "**prompt**:",
+                    "**prompt** -",
+                    "**prompt**-",
+                    "**prompt**",
+                    "### prompt:",
+                    "### prompt",
+                    "## prompt:",
+                    "## prompt",
+                    "# prompt:",
+                    "# prompt",
+                    "**image prompt:**",
+                    "**image prompt**:",
+                    "**image prompt** -",
+                    "**image prompt**",
+                    "image prompt:",
+                    "image prompt -",
+                    "positive prompt:",
+                    "positive prompt -",
+                    "**positive prompt:**",
+                    "**positive prompt**:",
+                    "**positive prompt**",
+                    "prompt:",
+                    "prompt -"
+                };
+
+                foreach (var prefix in knownPrefixes)
+                {
+                    if (lower.StartsWith(prefix))
+                    {
+                        // Ensure that bare prefixes like "**prompt**" or "### prompt" don't match words like "prompting"
+                        if (prefix == "**prompt**" || prefix == "### prompt" || prefix == "## prompt" || prefix == "# prompt" || prefix == "**image prompt**" || prefix == "**positive prompt**")
+                        {
+                            var rest = trimmedLeading.Substring(prefix.Length);
+                            if (rest.Length > 0 && !char.IsWhiteSpace(rest[0]) && rest[0] != ':' && rest[0] != '-' && rest[0] != '–' && rest[0] != '—')
+                            {
+                                continue;
+                            }
+                        }
+
+                        matchedPrefix = prefix;
+                        break;
+                    }
+                }
+
+                if (matchedPrefix != null)
+                {
+                    var afterPrefix = trimmedLeading.Substring(matchedPrefix.Length);
+                    // Also strip any following colons, dashes, and leading whitespace/newlines
+                    afterPrefix = afterPrefix.TrimStart(' ', '\t', ':', '-', '–', '—');
+                    while (afterPrefix.StartsWith("\r\n") || afterPrefix.StartsWith("\n") || afterPrefix.StartsWith("\r"))
+                    {
+                        if (afterPrefix.StartsWith("\r\n")) afterPrefix = afterPrefix.Substring(2);
+                        else afterPrefix = afterPrefix.Substring(1);
+                        afterPrefix = afterPrefix.TrimStart(' ', '\t');
+                    }
+                    result = afterPrefix;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return result;
+        }
+
         public static string CleanPrompt(string? prompt)
         {
             if (string.IsNullOrWhiteSpace(prompt)) return string.Empty;
@@ -1358,20 +1573,7 @@ namespace Prompter.ViewModels
                 }
             }
 
-            string[] prefixes = new[]
-            {
-                "**prompt:**",
-                "**prompt**:",
-                "**prompt** -",
-                "**prompt**-",
-                "**image prompt:**",
-                "**image prompt**:",
-                "image prompt:",
-                "positive prompt:",
-                "**positive prompt:**",
-                "prompt:",
-                "prompt -"
-            };
+            trimmed = StripLeadingPromptPrefix(trimmed).Trim();
 
             bool stripped = true;
             while (stripped)
@@ -1387,15 +1589,11 @@ namespace Prompter.ViewModels
                     stripped = true;
                 }
 
-                var lower = trimmed.ToLowerInvariant();
-                foreach (var prefix in prefixes)
+                var afterStrip = StripLeadingPromptPrefix(trimmed);
+                if (afterStrip != trimmed)
                 {
-                    if (lower.StartsWith(prefix))
-                    {
-                        trimmed = trimmed.Substring(prefix.Length).Trim();
-                        stripped = true;
-                        break;
-                    }
+                    trimmed = afterStrip.Trim();
+                    stripped = true;
                 }
             }
 

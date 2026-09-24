@@ -148,6 +148,23 @@ namespace Prompter.Models
 
         public bool HasLoras => !string.IsNullOrWhiteSpace(_lorasSummary);
 
+        private long? _imageSeed;
+        public long? ImageSeed
+        {
+            get => _imageSeed;
+            set
+            {
+                if (_imageSeed != value)
+                {
+                    _imageSeed = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasSeed));
+                }
+            }
+        }
+
+        public bool HasSeed => _imageSeed.HasValue && _imageSeed.Value >= 0;
+
         public string ThinkingContent
         {
             get => _thinkingContent;

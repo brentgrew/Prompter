@@ -23,6 +23,7 @@ namespace Prompter.Services
         public double Cfg { get; set; } = 7.0;
         public string? ModelName { get; set; }
         public List<string>? LorasUsed { get; set; }
+        public long? Seed { get; set; }
     }
 
     public class SwarmUiService
@@ -474,13 +475,23 @@ namespace Prompter.Services
             LocalModelInfo model,
             CancellationToken cancellationToken)
         {
-            return GenerateImageAsync(prompt, model, null, cancellationToken);
+            return GenerateImageAsync(prompt, model, null, null, cancellationToken);
+        }
+
+        public Task<GenerateImageResult> GenerateImageAsync(
+            string prompt,
+            LocalModelInfo model,
+            IReadOnlyList<LoraModelInfo>? loras,
+            CancellationToken cancellationToken)
+        {
+            return GenerateImageAsync(prompt, model, loras, null, cancellationToken);
         }
 
         public async Task<GenerateImageResult> GenerateImageAsync(
             string prompt,
             LocalModelInfo model,
             IReadOnlyList<LoraModelInfo>? loras,
+            long? seed,
             CancellationToken cancellationToken)
         {
             var result = new GenerateImageResult
@@ -489,7 +500,8 @@ namespace Prompter.Services
                 Steps = 50,
                 Cfg = 7.0,
                 Width = model.StandardWidth > 0 ? model.StandardWidth : 1024,
-                Height = model.StandardHeight > 0 ? model.StandardHeight : 1024
+                Height = model.StandardHeight > 0 ? model.StandardHeight : 1024,
+                Seed = seed
             };
 
             if (loras != null && loras.Count > 0)
@@ -522,6 +534,12 @@ namespace Prompter.Services
                     ["width"] = result.Width,
                     ["height"] = result.Height
                 };
+
+                if (seed.HasValue)
+                {
+                    requestPayload["seed"] = seed.Value;
+                    result.Seed = seed.Value;
+                }
 
                 var effectivePrompt = prompt;
 
@@ -615,6 +633,15 @@ namespace Prompter.Services
                     result.Success = false;
                     result.ErrorMessage = doc.RootElement.TryGetProperty("error", out var errP) ? errP.GetString() : "SwarmUI returned an error";
                     return result;
+                }
+
+                if (doc.RootElement.TryGetProperty("seed", out var seedProp) && seedProp.TryGetInt64(out var respSeed))
+                {
+                    result.Seed = respSeed;
+                }
+                else if (doc.RootElement.TryGetProperty("seeds", out var seedsArr) && seedsArr.ValueKind == JsonValueKind.Array && seedsArr.GetArrayLength() > 0 && seedsArr[0].TryGetInt64(out var firstSeed))
+                {
+                    result.Seed = firstSeed;
                 }
 
                 if (doc.RootElement.TryGetProperty("images", out var imagesArr) &&
