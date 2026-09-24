@@ -71,18 +71,36 @@ namespace Prompter
 
         public void RestoreAndBringToFront()
         {
-            if (!IsVisible)
+            if (_trayService != null)
             {
-                Show();
+                _trayService.BringWindowToFront();
             }
-            if (WindowState == WindowState.Minimized)
+            else
             {
-                WindowState = WindowState.Normal;
+                if (!IsVisible)
+                {
+                    Show();
+                }
+                if (WindowState == WindowState.Minimized)
+                {
+                    WindowState = WindowState.Normal;
+                }
+                Activate();
+                Topmost = true;
+                Topmost = false;
+                Focus();
             }
-            Activate();
-            Topmost = true;
-            Topmost = false;
-            Focus();
+        }
+
+        protected override void OnPreviewKeyDown(KeyEventArgs e)
+        {
+            if (e.Key == Key.Pause)
+            {
+                _trayService?.ToggleTray();
+                e.Handled = true;
+                return;
+            }
+            base.OnPreviewKeyDown(e);
         }
 
         private void MainWindow_Closing(object? sender, CancelEventArgs e)
@@ -91,8 +109,14 @@ namespace Prompter
             {
                 // Close button minimizes Prompter to the system tray instead of quitting
                 e.Cancel = true;
-                Hide();
-                _trayService?.ShowFirstCloseToTrayNotification();
+                if (_trayService != null)
+                {
+                    _trayService.HideToTray();
+                }
+                else
+                {
+                    Hide();
+                }
                 return;
             }
 

@@ -128,6 +128,8 @@ namespace Prompter.Services
         private bool _isIconAdded;
         private bool _hasShownBalloon;
         private ContextMenu? _trayContextMenu;
+        private WindowState _lastNonMinimizedState = WindowState.Normal;
+        private DateTime _lastToggleTime = DateTime.MinValue;
 
         public event Action? ExitRequested;
 
@@ -201,7 +203,7 @@ namespace Prompter.Services
                 uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
                 uCallbackMessage = WM_TRAYICON,
                 hIcon = _hIcon,
-                szTip = "Prompter - AI Prompt Manager (Press Pause/Break to show)"
+                szTip = "Prompter - AI Prompt Manager (Press Pause/Break to show/hide)"
             };
 
             _isIconAdded = Shell_NotifyIconW(NIM_ADD, ref nid);
@@ -256,10 +258,15 @@ namespace Prompter.Services
 
             if (_window.WindowState == WindowState.Minimized)
             {
-                _window.WindowState = WindowState.Normal;
+                _window.WindowState = _lastNonMinimizedState == WindowState.Maximized
+                    ? WindowState.Maximized
+                    : WindowState.Normal;
+            }
+            else if (_lastNonMinimizedState == WindowState.Maximized && _window.WindowState != WindowState.Maximized)
+            {
+                _window.WindowState = WindowState.Maximized;
             }
 
-            ShowWindow(_hWnd, SW_RESTORE);
             SetForegroundWindow(_hWnd);
 
             // Pop window to front
@@ -267,6 +274,41 @@ namespace Prompter.Services
             _window.Topmost = false;
             _window.Activate();
             _window.Focus();
+        }
+
+        public void HideToTray()
+        {
+            try
+            {
+                if (_window.WindowState != WindowState.Minimized)
+                {
+                    _lastNonMinimizedState = _window.WindowState;
+                }
+                _window.Hide();
+                ShowFirstCloseToTrayNotification();
+            }
+            catch (Exception)
+            {
+                // Safety fallback
+            }
+        }
+
+        public void ToggleTray()
+        {
+            if ((DateTime.UtcNow - _lastToggleTime).TotalMilliseconds < 250)
+            {
+                return;
+            }
+            _lastToggleTime = DateTime.UtcNow;
+
+            if (_window.IsVisible && _window.WindowState != WindowState.Minimized)
+            {
+                HideToTray();
+            }
+            else
+            {
+                BringWindowToFront();
+            }
         }
 
         private void CreateContextMenu()
@@ -323,8 +365,8 @@ namespace Prompter.Services
         {
             if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
             {
-                // Global Pause/Break key pressed
-                BringWindowToFront();
+                // Global Pause/Break key pressed -> Toggle show / hide to system tray
+                ToggleTray();
                 handled = true;
                 return IntPtr.Zero;
             }

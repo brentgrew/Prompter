@@ -1515,5 +1515,82 @@ namespace Prompter.Tests
 
             Assert.IsNull(caughtException, caughtException?.ToString());
         }
+
+        [TestMethod]
+        public void TestSystemTray_ToggleTray_HidesWhenVisibleAndShowsWhenHidden()
+        {
+            Exception? caughtException = null;
+            var thread = new System.Threading.Thread(() =>
+            {
+                try
+                {
+                    if (System.Windows.Application.Current == null)
+                    {
+                        _ = new System.Windows.Application();
+                    }
+
+                    var win = new System.Windows.Window();
+                    var vm = new MainViewModel();
+                    var tray = new SystemTrayService(win, vm);
+
+                    win.Show();
+                    Assert.IsTrue(win.IsVisible);
+
+                    tray.ToggleTray();
+                    Assert.IsFalse(win.IsVisible);
+
+                    tray.ToggleTray();
+                    Assert.IsTrue(win.IsVisible);
+                }
+                catch (Exception ex)
+                {
+                    caughtException = ex;
+                }
+            });
+            thread.SetApartmentState(System.Threading.ApartmentState.STA);
+            thread.Start();
+            thread.Join();
+
+            Assert.IsNull(caughtException, caughtException?.ToString());
+        }
+
+        [TestMethod]
+        public void TestSystemTray_BringWindowToFront_PreservesMaximizedState()
+        {
+            Exception? caughtException = null;
+            var thread = new System.Threading.Thread(() =>
+            {
+                try
+                {
+                    if (System.Windows.Application.Current == null)
+                    {
+                        _ = new System.Windows.Application();
+                    }
+
+                    var win = new System.Windows.Window();
+                    var vm = new MainViewModel();
+                    var tray = new SystemTrayService(win, vm);
+
+                    win.WindowState = System.Windows.WindowState.Maximized;
+                    win.Show();
+
+                    tray.HideToTray();
+                    Assert.IsFalse(win.IsVisible);
+
+                    tray.BringWindowToFront();
+                    Assert.IsTrue(win.IsVisible);
+                    Assert.AreEqual(System.Windows.WindowState.Maximized, win.WindowState);
+                }
+                catch (Exception ex)
+                {
+                    caughtException = ex;
+                }
+            });
+            thread.SetApartmentState(System.Threading.ApartmentState.STA);
+            thread.Start();
+            thread.Join();
+
+            Assert.IsNull(caughtException, caughtException?.ToString());
+        }
     }
 }
