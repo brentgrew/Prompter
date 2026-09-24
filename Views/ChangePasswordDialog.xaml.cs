@@ -7,8 +7,10 @@ namespace Prompter.Views
 {
     public partial class ChangePasswordDialog : Window
     {
-        private readonly PromptFolder _folder;
-        private readonly StorageService _storageService;
+        private readonly PromptFolder? _folder;
+        private readonly StorageService? _storageService;
+        private readonly string? _customSalt;
+        private readonly string? _customHash;
 
         public bool RemoveProtectionSelected { get; private set; }
         public string? NewPassword { get; private set; }
@@ -48,6 +50,26 @@ namespace Prompter.Views
             };
         }
 
+        public ChangePasswordDialog(string headerTitle, string? currentSalt, string? currentHash)
+        {
+            InitializeComponent();
+            ThemeService.Instance.ApplyWindowTheme(this);
+            _customSalt = currentSalt;
+            _customHash = currentHash;
+
+            txtHeader.Text = headerTitle;
+            pnlModeSelect.Visibility = Visibility.Collapsed;
+            var isProtected = !string.IsNullOrEmpty(_customSalt) && !string.IsNullOrEmpty(_customHash);
+            pnlCurrentPassword.Visibility = isProtected ? Visibility.Visible : Visibility.Collapsed;
+            lblNewPassword.Text = isProtected ? "New Password *" : "Set Password *";
+
+            Loaded += (s, e) =>
+            {
+                if (isProtected) txtCurrentPassword.Focus();
+                else txtNewPassword.Focus();
+            };
+        }
+
         private void RbMode_Checked(object sender, RoutedEventArgs e)
         {
             if (pnlNewPassword == null) return;
@@ -60,8 +82,27 @@ namespace Prompter.Views
         {
             txtError.Visibility = Visibility.Collapsed;
 
+            // Handle custom password verification (e.g. for LoRA security)
+            if (!string.IsNullOrEmpty(_customSalt) && !string.IsNullOrEmpty(_customHash))
+            {
+                var currentPwd = txtCurrentPassword.Password;
+                if (string.IsNullOrEmpty(currentPwd))
+                {
+                    ShowError("Please enter the current password.");
+                    txtCurrentPassword.Focus();
+                    return;
+                }
+
+                if (!CryptoService.VerifyPassword(currentPwd, _customSalt, _customHash))
+                {
+                    ShowError("Current password is incorrect.");
+                    txtCurrentPassword.SelectAll();
+                    txtCurrentPassword.Focus();
+                    return;
+                }
+            }
             // If folder is currently password-protected, verify current password
-            if (_folder.IsPasswordProtected)
+            else if (_folder != null && _folder.IsPasswordProtected)
             {
                 var currentPwd = txtCurrentPassword.Password;
                 if (string.IsNullOrEmpty(currentPwd))

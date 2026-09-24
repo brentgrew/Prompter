@@ -86,6 +86,12 @@ namespace Prompter.Models
             Name.Contains("1.5", StringComparison.OrdinalIgnoreCase) ||
             Name.Contains("v1-5", StringComparison.OrdinalIgnoreCase);
 
+        public bool IsNsfw =>
+            Folder.StartsWith("NSFW", StringComparison.OrdinalIgnoreCase) ||
+            Category.Equals("NSFW", StringComparison.OrdinalIgnoreCase) ||
+            RelativePath.StartsWith("NSFW", StringComparison.OrdinalIgnoreCase) ||
+            Name.Contains("nsfw", StringComparison.OrdinalIgnoreCase);
+
         public string ArchitectureBadge
         {
             get
@@ -111,7 +117,37 @@ namespace Prompter.Models
             }
         }
 
-        public string DisplayTitle => !string.IsNullOrWhiteSpace(Title) ? Title : Path.GetFileNameWithoutExtension(Name);
+        public string FileName
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(Name)) return Path.GetFileName(Name);
+                if (!string.IsNullOrWhiteSpace(RelativePath)) return Path.GetFileName(RelativePath);
+                if (!string.IsNullOrWhiteSpace(FilePath)) return Path.GetFileName(FilePath);
+                return string.Empty;
+            }
+        }
+
+        public string FileNameWithoutExtension => !string.IsNullOrWhiteSpace(FileName)
+            ? Path.GetFileNameWithoutExtension(FileName)
+            : string.Empty;
+
+        public string DisplayTitle
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(Title)) return Title;
+                if (!string.IsNullOrWhiteSpace(Name)) return Path.GetFileNameWithoutExtension(Name);
+                if (!string.IsNullOrWhiteSpace(RelativePath)) return Path.GetFileNameWithoutExtension(RelativePath);
+                if (!string.IsNullOrWhiteSpace(FilePath)) return Path.GetFileNameWithoutExtension(FilePath);
+                return "Unknown LoRA";
+            }
+        }
+
+        public bool HasDistinctFileName =>
+            !string.IsNullOrWhiteSpace(FileName) &&
+            !string.Equals(DisplayTitle, FileName, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(DisplayTitle, FileNameWithoutExtension, StringComparison.OrdinalIgnoreCase);
 
         public string DisplayNameWithWeight => $"{DisplayTitle} ({StrengthFormatted})";
 

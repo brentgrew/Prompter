@@ -103,6 +103,40 @@
                            FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="28,2,0,0"/>
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- NSFW Lock / Unlock Controls -->
+                <Button Command="{Binding UnlockNsfwCommand}"
+                        Background="#2D1515" Foreground="#F87171"
+                        BorderBrush="#7F1D1D" BorderThickness="1"
+                        Padding="10,6" Margin="0,0,8,0"
+                        Visibility="{Binding IsNsfwLocked, Converter={StaticResource BoolToVis}}"
+                        ToolTip="{Binding NsfwLockTooltip}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🔒" FontSize="11" Margin="0,0,6,0"/>
+                        <TextBlock Text="Unlock NSFW" FontSize="12" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Command="{Binding LockNsfwCommand}"
+                        Background="#064E3B" Foreground="#34D399"
+                        BorderBrush="#059669" BorderThickness="1"
+                        Padding="10,6" Margin="0,0,8,0"
+                        Visibility="{Binding IsNsfwUnlocked, Converter={StaticResource BoolToVis}}"
+                        ToolTip="{Binding NsfwLockTooltip}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🔓" FontSize="11" Margin="0,0,6,0"/>
+                        <TextBlock Text="Lock NSFW" FontSize="12" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Command="{Binding ChangeNsfwPasswordCommand}"
+                        Background="{DynamicResource DialogCardBackgroundBrush}" Foreground="{DynamicResource TextMutedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        Padding="8,6" Margin="0,0,8,0"
+                        Visibility="{Binding IsNsfwUnlocked, Converter={StaticResource BoolToVis}}"
+                        ToolTip="Change NSFW LoRA folder password">
+                    <TextBlock Text="🔑" FontSize="12"/>
+                </Button>
+
                 <Button Command="{Binding RefreshCommand}" Background="{DynamicResource DialogCardBackgroundBrush}"
                         Foreground="{DynamicResource TextBodyBrush}" BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1" Padding="10,6" ToolTip="Re-scan LoRA models from SwarmUI API and disk">
@@ -182,7 +216,7 @@
                     </DockPanel>
 
                     <!-- Empty State for Column A -->
-                    <Border Grid.Row="1" Background="#0B0F19" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    <Border Grid.Row="1" Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             Visibility="{Binding HasActiveLoras, Converter={StaticResource InvertBoolToVis}}" Padding="20">
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <TextBlock Text="🧬" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,8" Opacity="0.5"/>
@@ -218,11 +252,11 @@
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="#1E293B" CornerRadius="8" Padding="12,10"
-                                        BorderBrush="#334155" BorderThickness="1">
+                                <Border Background="{DynamicResource FolderCardBackgroundBrush}" CornerRadius="8" Padding="12,10"
+                                        BorderBrush="{DynamicResource FolderCardBorderBrush}" BorderThickness="1">
                                     <StackPanel>
                                         <!-- Top Row: Title, Badges, Remove Button -->
-                                        <DockPanel Margin="0,0,0,8">
+                                        <DockPanel Margin="0,0,0,4">
                                             <Button DockPanel.Dock="Right"
                                                     Command="{Binding DataContext.RemoveLoraCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"
@@ -232,24 +266,35 @@
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                 <TextBlock Text="🧬 " FontSize="12" VerticalAlignment="Center"/>
                                                 <TextBlock Text="{Binding DisplayTitle}" FontWeight="Bold" FontSize="12.5"
-                                                           Foreground="#F8FAFC" TextTrimming="CharacterEllipsis" MaxWidth="240"
-                                                           ToolTip="{Binding Name}"/>
+                                                           Foreground="{DynamicResource TextHeadingBrush}" TextTrimming="CharacterEllipsis" MaxWidth="240"
+                                                           ToolTip="{Binding DisplayTitle}"/>
                                             </StackPanel>
                                         </DockPanel>
 
-                                        <!-- Badge Row: Architecture & Folder -->
-                                        <WrapPanel Margin="0,0,0,10">
+                                        <!-- Subtitle: Actual Filename if distinct -->
+                                        <TextBlock Text="{Binding FileName, StringFormat='📄 {0}'}" FontSize="10"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   TextTrimming="CharacterEllipsis" Margin="20,0,0,4"
+                                                   Visibility="{Binding HasDistinctFileName, Converter={StaticResource BoolToVis}}"
+                                                   ToolTip="{Binding RelativePath}"/>
+
+                                        <!-- Badge Row: Architecture, Folder, NSFW -->
+                                        <WrapPanel Margin="0,0,0,8">
+                                            <Border Background="#EF4444" CornerRadius="3" Padding="4,1" Margin="0,0,5,0"
+                                                    Visibility="{Binding IsNsfw, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="🔞 NSFW" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                            </Border>
                                             <Border Background="#3B82F6" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
                                                 <TextBlock Text="{Binding ArchitectureBadge}" FontSize="10" FontWeight="SemiBold" Foreground="#FFFFFF"/>
                                             </Border>
-                                            <Border Background="#334155" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
-                                                <TextBlock Text="{Binding Folder, StringFormat='📁 {0}'}" FontSize="10" Foreground="#94A3B8"/>
+                                            <Border Background="{DynamicResource FolderBadgeBackgroundBrush}" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
+                                                <TextBlock Text="{Binding Folder, StringFormat='📁 {0}'}" FontSize="10" Foreground="{DynamicResource FolderBadgeForegroundBrush}"/>
                                             </Border>
-                                            <TextBlock Text="{Binding SizeFormatted}" FontSize="10" Foreground="#64748B" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding SizeFormatted}" FontSize="10" Foreground="{DynamicResource TextSubtleBrush}" VerticalAlignment="Center"/>
                                         </WrapPanel>
 
                                         <!-- STRENGTH CONFIGURATION SECTION -->
-                                        <Border Background="#0F172A" CornerRadius="6" Padding="10,8" BorderBrush="#1E293B" BorderThickness="1">
+                                        <Border Background="{DynamicResource InputBackgroundBrush}" CornerRadius="6" Padding="10,8" BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1">
                                             <StackPanel>
                                                 <!-- Strength Slider & Numeric Input -->
                                                 <DockPanel Margin="0,0,0,6">
@@ -338,12 +383,13 @@
                             <GroupStyle>
                                 <GroupStyle.HeaderTemplate>
                                     <DataTemplate>
-                                        <Border Background="#1E293B" CornerRadius="4" Padding="8,4" Margin="0,8,0,4">
+                                        <Border Background="{DynamicResource FolderCardBackgroundBrush}" CornerRadius="4" Padding="8,4" Margin="0,8,0,4"
+                                                BorderBrush="{DynamicResource FolderCardBorderBrush}" BorderThickness="1">
                                             <DockPanel>
                                                 <TextBlock Text="{Binding Name, StringFormat='📁 {0}'}"
-                                                           FontWeight="Bold" FontSize="11.5" Foreground="#38BDF8"/>
+                                                           FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource AccentPrimaryBrush}"/>
                                                 <TextBlock Text="{Binding ItemCount, StringFormat='({0})'}"
-                                                           FontSize="10.5" Foreground="#64748B" HorizontalAlignment="Right"/>
+                                                           FontSize="10.5" Foreground="{DynamicResource TextSubtleBrush}" HorizontalAlignment="Right"/>
                                             </DockPanel>
                                         </Border>
                                     </DataTemplate>
@@ -360,17 +406,18 @@
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="bdr" Background="#0F172A" CornerRadius="6" Padding="10,8"
-                                                    BorderBrush="#1E293B" BorderThickness="1" Margin="0,2">
+                                            <Border x:Name="bdr" Background="{DynamicResource FolderCardBackgroundBrush}" CornerRadius="6" Padding="10,8"
+                                                    BorderBrush="{DynamicResource FolderCardBorderBrush}" BorderThickness="1" Margin="0,2">
                                                 <ContentPresenter/>
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsSelected" Value="True">
                                                     <Setter TargetName="bdr" Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}"/>
-                                                    <Setter TargetName="bdr" Property="Background" Value="#1E293B"/>
+                                                    <Setter TargetName="bdr" Property="Background" Value="{DynamicResource CardSelectedBackgroundBrush}"/>
                                                 </Trigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="bdr" Property="BorderBrush" Value="#475569"/>
+                                                    <Setter TargetName="bdr" Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}"/>
+                                                    <Setter TargetName="bdr" Property="Background" Value="{DynamicResource FolderCardHoverBrush}"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -387,26 +434,50 @@
                                             Command="{Binding DataContext.AddLoraCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}"
                                             Background="{DynamicResource AccentPrimaryBrush}" Foreground="#FFFFFF"
-                                            BorderThickness="0" Padding="8,3" FontSize="11" VerticalAlignment="Center"
+                                            BorderThickness="0" Padding="10,4" FontSize="11.5" VerticalAlignment="Center"
                                             Content="+ Add" ToolTip="Add to active LoRAs (Column A)"/>
 
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
-                                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontSize="12"
-                                                   Foreground="{DynamicResource WindowForegroundBrush}"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                        <WrapPanel Margin="0,3,0,0">
+                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
+                                        <!-- 1. Primary Model Title / Name -->
+                                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontSize="12.5"
+                                                   Foreground="{DynamicResource TextHeadingBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding DisplayTitle}"/>
+
+                                        <!-- 2. Actual Filename (shown when distinct from DisplayTitle) -->
+                                        <TextBlock Text="{Binding FileName, StringFormat='📄 {0}'}" FontSize="10"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   TextTrimming="CharacterEllipsis" Margin="0,1,0,3"
+                                                   Visibility="{Binding HasDistinctFileName, Converter={StaticResource BoolToVis}}"
+                                                   ToolTip="{Binding RelativePath}"/>
+
+                                        <!-- 3. Badges: NSFW, Architecture, Folder, Size -->
+                                        <WrapPanel Margin="0,2,0,0">
+                                            <!-- NSFW Badge -->
+                                            <Border Background="#EF4444" CornerRadius="3" Padding="4,1" Margin="0,0,5,0"
+                                                    Visibility="{Binding IsNsfw, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="🔞 NSFW" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                            </Border>
+                                            <!-- Architecture Badge -->
                                             <Border Background="#3B82F6" CornerRadius="3" Padding="4,1" Margin="0,0,5,0">
                                                 <TextBlock Text="{Binding ArchitectureBadge}" FontSize="9.5" FontWeight="SemiBold" Foreground="#FFFFFF"/>
                                             </Border>
-                                            <TextBlock Text="{Binding Folder, StringFormat='in {0}'}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
-                                                       VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <!-- Folder Badge -->
+                                            <Border Background="{DynamicResource FolderBadgeBackgroundBrush}" CornerRadius="3" Padding="4,1" Margin="0,0,5,0">
+                                                <TextBlock Text="{Binding Folder, StringFormat='in {0}'}" FontSize="10" Foreground="{DynamicResource FolderBadgeForegroundBrush}"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                            <!-- File Size -->
                                             <TextBlock Text="{Binding SizeFormatted}" FontSize="10" Foreground="{DynamicResource TextSubtleBrush}"
                                                        VerticalAlignment="Center"/>
                                         </WrapPanel>
+
+                                        <!-- 4. Trigger Phrase -->
                                         <TextBlock Text="{Binding TriggerPhrase, StringFormat='Triggers: {0}'}"
-                                                   FontSize="9.5" Foreground="#A5B4FC" TextTrimming="CharacterEllipsis"
-                                                   Margin="0,2,0,0"
-                                                   Visibility="{Binding TriggerPhrase, Converter={StaticResource NullToVis}}"/>
+                                                   FontSize="9.5" Foreground="#818CF8" TextTrimming="CharacterEllipsis"
+                                                   Margin="0,3,0,0"
+                                                   Visibility="{Binding TriggerPhrase, Converter={StaticResource NullToVis}}"
+                                                   ToolTip="{Binding TriggerPhrase}"/>
                                     </StackPanel>
                                 </DockPanel>
                             </DataTemplate>

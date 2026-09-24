@@ -1075,5 +1075,159 @@ namespace Prompter.Tests
             Assert.IsFalse(vm.HasActiveLoras);
             Assert.AreEqual(0, vm.ActiveLorasCount);
         }
+
+        [TestMethod]
+        public void TestLoraModelInfoFileNameAndDisplayProperties()
+        {
+            // Case 1: Civitai title distinct from filename
+            var loraWithTitle = new LoraModelInfo
+            {
+                Id = "SD/0778 submerged_v1_pony.safetensors",
+                Name = "0778 submerged_v1_pony.safetensors",
+                Title = "0778 submerged - v1.0",
+                RelativePath = "SD/0778 submerged_v1_pony.safetensors",
+                Folder = "SD",
+                Architecture = "stable-diffusion-xl-v1-base/lora"
+            };
+
+            Assert.AreEqual("0778 submerged - v1.0", loraWithTitle.DisplayTitle);
+            Assert.AreEqual("0778 submerged_v1_pony.safetensors", loraWithTitle.FileName);
+            Assert.AreEqual("0778 submerged_v1_pony", loraWithTitle.FileNameWithoutExtension);
+            Assert.IsTrue(loraWithTitle.HasDistinctFileName);
+
+            // Case 2: No Civitai title (title is empty, Name is filename)
+            var loraWithoutTitle = new LoraModelInfo
+            {
+                Id = "SD/flux-lora-000010.safetensors",
+                Name = "flux-lora-000010.safetensors",
+                Title = "",
+                RelativePath = "SD/flux-lora-000010.safetensors",
+                Folder = "SD"
+            };
+
+            Assert.AreEqual("flux-lora-000010", loraWithoutTitle.DisplayTitle);
+            Assert.AreEqual("flux-lora-000010.safetensors", loraWithoutTitle.FileName);
+            Assert.IsFalse(loraWithoutTitle.HasDistinctFileName);
+
+            // Case 3: NSFW detection
+            var nsfwLora1 = new LoraModelInfo { Folder = "NSFW/SD/Actions", Name = "pose1.safetensors" };
+            var nsfwLora2 = new LoraModelInfo { RelativePath = "NSFW/SD/People/char.safetensors", Folder = "NSFW" };
+            var nsfwLora3 = new LoraModelInfo { Name = "explicit_nsfw_detailer.safetensors", Folder = "SD" };
+            var sfwLora = new LoraModelInfo { Folder = "SD/Styles", Name = "clean_portrait.safetensors" };
+
+            Assert.IsTrue(nsfwLora1.IsNsfw);
+            Assert.IsTrue(nsfwLora2.IsNsfw);
+            Assert.IsTrue(nsfwLora3.IsNsfw);
+            Assert.IsFalse(sfwLora.IsNsfw);
+        }
+
+        [TestMethod]
+        public void TestLoraSecurityServiceUnlockLockChangePassword()
+        {
+            var tempConfig = Path.Combine(Path.GetTempPath(), $"lora_sec_test_{Guid.NewGuid():N}.json");
+            try
+            {
+                var sec = new LoraSecurityService(tempConfig);
+                Assert.IsTrue(sec.IsProtected);
+                Assert.IsFalse(sec.IsUnlocked);
+
+                // Default password should be password123
+                var wrong = sec.TryUnlock("wrongpwd", out var error);
+                Assert.IsFalse(wrong);
+                Assert.IsFalse(sec.IsUnlocked);
+                Assert.IsNotNull(error);
+
+                var ok = sec.TryUnlock("password123", out error);
+                Assert.IsTrue(ok);
+                Assert.IsTrue(sec.IsUnlocked);
+                Assert.IsNull(error);
+
+                // Lock again
+                sec.Lock();
+                Assert.IsFalse(sec.IsUnlocked);
+
+                // Change password
+                var changed = sec.ChangePassword("password123", "SecretPass!2026", out error);
+                Assert.IsTrue(changed);
+                Assert.IsNull(error);
+
+                // Re-instantiate from persisted config
+                var sec2 = new LoraSecurityService(tempConfig);
+                Assert.IsFalse(sec2.IsUnlocked);
+                Assert.IsFalse(sec2.TryUnlock("password123", out _));
+                Assert.IsTrue(sec2.TryUnlock("SecretPass!2026", out _));
+                Assert.IsTrue(sec2.IsUnlocked);
+            }
+            finally
+            {
+                if (File.Exists(tempConfig))
+                {
+                    try { File.Delete(tempConfig); } catch { }
+                }
+            }
+        }
+
+        [TestMethod]
+        public void TestLoraManagerViewModelNsfwFilteringAndUnlock()
+        {
+            var tempConfig = Path.Combine(Path.GetTempPath(), $"lora_sec_vm_{Guid.NewGuid():N}.json");
+            try
+            {
+                var sec = new LoraSecurityService(tempConfig);
+                var vm = new LoraManagerViewModel(securityService: sec);
+
+                var sfwLora = new LoraModelInfo
+                {
+                    Id = "SD/Styles/Anime.safetensors",
+                    Name = "Anime.safetensors",
+                    Title = "Anime Style",
+                    Folder = "SD/Styles",
+                    Category = "SD"
+                };
+
+                var nsfwLora = new LoraModelInfo
+                {
+                    Id = "NSFW/SD/Actions/Pose.safetensors",
+                    Name = "Pose.safetensors",
+                    Title = "Action Pose",
+                    Folder = "NSFW/SD/Actions",
+                    Category = "NSFW"
+                };
+
+                vm.AvailableLoras.Add(sfwLora);
+                vm.AvailableLoras.Add(nsfwLora);
+                vm.AvailableLorasView.Refresh();
+
+                // When locked: only SFW is visible
+                Assert.IsTrue(vm.IsNsfwLocked);
+                Assert.AreEqual(1, vm.FilteredAvailableCount);
+
+                // Search by filename for NSFW while locked returns 0
+                vm.SearchText = "Pose";
+                Assert.AreEqual(0, vm.FilteredAvailableCount);
+
+                // Search by filename for SFW returns 1
+                vm.SearchText = "Anime.safetensors";
+                Assert.AreEqual(1, vm.FilteredAvailableCount);
+                vm.SearchText = "";
+
+                // Unlock
+                sec.TryUnlock("password123", out _);
+                Assert.IsTrue(vm.IsNsfwUnlocked);
+                Assert.AreEqual(2, vm.FilteredAvailableCount);
+
+                // Lock again
+                sec.Lock();
+                Assert.IsTrue(vm.IsNsfwLocked);
+                Assert.AreEqual(1, vm.FilteredAvailableCount);
+            }
+            finally
+            {
+                if (File.Exists(tempConfig))
+                {
+                    try { File.Delete(tempConfig); } catch { }
+                }
+            }
+        }
     }
 }
