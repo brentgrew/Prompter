@@ -39,14 +39,20 @@ namespace Prompter.Models
         public int StandardWidth { get; set; } = 1024;
         public int StandardHeight { get; set; } = 1024;
 
-        public bool IsSdxl =>
+        public bool IsFlux =>
             IsImageModel && (
+                Name.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
+                ModelId.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("flux", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsSdxl =>
+            IsImageModel && !IsFlux && (
                 Name.Contains("sdxl", StringComparison.OrdinalIgnoreCase) ||
                 Name.Contains("pony", StringComparison.OrdinalIgnoreCase) ||
                 Name.Contains("xl", StringComparison.OrdinalIgnoreCase));
 
         public bool IsSd15 =>
-            IsImageModel && (
+            IsImageModel && !IsFlux && (
                 Name.Contains("1.5", StringComparison.OrdinalIgnoreCase) ||
                 Name.Contains("dreamshaper", StringComparison.OrdinalIgnoreCase) ||
                 Name.Contains("v1", StringComparison.OrdinalIgnoreCase));
@@ -97,6 +103,7 @@ namespace Prompter.Models
             {
                 if (IsImageModel)
                 {
+                    if (IsFlux) return "Flux";
                     if (IsSdxl) return "SDXL";
                     if (IsSd15) return "SD 1.5";
                     return "Stable Diffusion";
@@ -119,6 +126,7 @@ namespace Prompter.Models
             {
                 if (IsImageModel)
                 {
+                    if (IsFlux) return "🎨 [Flux] ";
                     if (IsSdxl) return "🎨 [SDXL] ";
                     if (IsSd15) return "🎨 [SD 1.5] ";
                     return "🎨 [Image] ";

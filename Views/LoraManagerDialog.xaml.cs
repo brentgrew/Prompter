@@ -17,10 +17,11 @@ namespace Prompter.Views
         public LoraManagerDialog(
             IEnumerable<LoraModelInfo>? currentActiveLoras = null,
             SwarmUiService? swarmUiService = null,
-            LoraSecurityService? securityService = null)
+            LoraSecurityService? securityService = null,
+            LocalModelInfo? currentModel = null)
         {
             InitializeComponent();
-            ViewModel = new LoraManagerViewModel(currentActiveLoras, swarmUiService, securityService);
+            ViewModel = new LoraManagerViewModel(currentActiveLoras, swarmUiService, securityService, currentModel);
             DataContext = ViewModel;
 
             Loaded += async (s, e) =>

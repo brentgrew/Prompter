@@ -98,6 +98,11 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="🧬" FontSize="20" Margin="0,0,8,0" VerticalAlignment="Center"/>
                     <TextBlock Text="SwarmUI LoRA Manager" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource TextHeadingBrush}"/>
+                    <Border Background="{DynamicResource DialogCardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="4" Padding="8,3" Margin="12,0,0,0"
+                            VerticalAlignment="Center" Visibility="{Binding HasActiveModel, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="{Binding ActiveModelInfoText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextHeadingBrush}"/>
+                    </Border>
                 </StackPanel>
                 <TextBlock Text="Select LoRAs from your library (X:\SwarmUI\Models\Lora) and configure strength weights for image generation."
                            FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="28,2,0,0"/>
@@ -278,7 +283,7 @@
                                                    Visibility="{Binding HasDistinctFileName, Converter={StaticResource BoolToVis}}"
                                                    ToolTip="{Binding RelativePath}"/>
 
-                                        <!-- Badge Row: Architecture, Folder, NSFW -->
+                                        <!-- Badge Row: Architecture, Folder, NSFW, Warning -->
                                         <WrapPanel Margin="0,0,0,8">
                                             <Border Background="#EF4444" CornerRadius="3" Padding="4,1" Margin="0,0,5,0"
                                                     Visibility="{Binding IsNsfw, Converter={StaticResource BoolToVis}}">
@@ -286,6 +291,11 @@
                                             </Border>
                                             <Border Background="#3B82F6" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
                                                 <TextBlock Text="{Binding ArchitectureBadge}" FontSize="10" FontWeight="SemiBold" Foreground="#FFFFFF"/>
+                                            </Border>
+                                            <Border Background="#DC2626" CornerRadius="4" Padding="5,1" Margin="0,0,6,0"
+                                                    Visibility="{Binding IsCompatibleWithActiveModel, Converter={StaticResource InvertBoolToVis}}"
+                                                    ToolTip="{Binding CompatibilityWarningText}">
+                                                <TextBlock Text="⚠️ Incompatible Arch" FontSize="10" FontWeight="Bold" Foreground="#FFFFFF"/>
                                             </Border>
                                             <Border Background="{DynamicResource FolderBadgeBackgroundBrush}" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
                                                 <TextBlock Text="{Binding Folder, StringFormat='📁 {0}'}" FontSize="10" Foreground="{DynamicResource FolderBadgeForegroundBrush}"/>
@@ -461,6 +471,12 @@
                                             <!-- Architecture Badge -->
                                             <Border Background="#3B82F6" CornerRadius="3" Padding="4,1" Margin="0,0,5,0">
                                                 <TextBlock Text="{Binding ArchitectureBadge}" FontSize="9.5" FontWeight="SemiBold" Foreground="#FFFFFF"/>
+                                            </Border>
+                                            <!-- Incompatible Architecture Warning -->
+                                            <Border Background="#DC2626" CornerRadius="3" Padding="4,1" Margin="0,0,5,0"
+                                                    Visibility="{Binding IsCompatibleWithActiveModel, Converter={StaticResource InvertBoolToVis}}"
+                                                    ToolTip="{Binding CompatibilityWarningText}">
+                                                <TextBlock Text="⚠️ Incompatible Arch" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFF"/>
                                             </Border>
                                             <!-- Folder Badge -->
                                             <Border Background="{DynamicResource FolderBadgeBackgroundBrush}" CornerRadius="3" Padding="4,1" Margin="0,0,5,0">

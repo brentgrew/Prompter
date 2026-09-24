@@ -44,13 +44,28 @@ namespace Prompter.ViewModels
             ? "NSFW LoRAs are currently visible. Click to lock."
             : "NSFW LoRAs are password protected. Click to enter password and unlock.";
 
+        public LocalModelInfo? CurrentImageModel { get; }
+        public bool HasActiveModel => CurrentImageModel != null;
+        public string ActiveModelInfoText => CurrentImageModel != null
+            ? $"Active Model: {CurrentImageModel.Name} ({CurrentImageModel.FamilyName})"
+            : string.Empty;
+
+        public void UpdateLoraCompatibility(LoraModelInfo lora)
+        {
+            if (lora == null) return;
+            lora.IsCompatibleWithActiveModel = lora.IsCompatibleWith(CurrentImageModel);
+            lora.CompatibilityWarningText = lora.IncompatibleWarning(CurrentImageModel);
+        }
+
         public LoraManagerViewModel(
             IEnumerable<LoraModelInfo>? currentActiveLoras = null,
             SwarmUiService? swarmUiService = null,
-            LoraSecurityService? securityService = null)
+            LoraSecurityService? securityService = null,
+            LocalModelInfo? currentModel = null)
         {
             _swarmUiService = swarmUiService ?? SwarmUiService.Instance;
             _securityService = securityService ?? LoraSecurityService.Instance;
+            CurrentImageModel = currentModel;
 
             AvailableLorasView = CollectionViewSource.GetDefaultView(AvailableLoras);
             AvailableLorasView.Filter = FilterAvailableLora;
@@ -90,7 +105,7 @@ namespace Prompter.ViewModels
             {
                 foreach (var item in currentActiveLoras)
                 {
-                    ActiveLoras.Add(new LoraModelInfo
+                    var clone = new LoraModelInfo
                     {
                         Id = item.Id,
                         Name = item.Name,
@@ -106,7 +121,9 @@ namespace Prompter.ViewModels
                         TriggerPhrase = item.TriggerPhrase,
                         PreviewImageUrl = item.PreviewImageUrl,
                         Tags = new List<string>(item.Tags)
-                    });
+                    };
+                    UpdateLoraCompatibility(clone);
+                    ActiveLoras.Add(clone);
                 }
             }
         }
@@ -226,6 +243,7 @@ namespace Prompter.ViewModels
                 AvailableLoras.Clear();
                 foreach (var lora in loras)
                 {
+                    UpdateLoraCompatibility(lora);
                     AvailableLoras.Add(lora);
                 }
 
@@ -335,6 +353,7 @@ namespace Prompter.ViewModels
                 Tags = new List<string>(lora.Tags)
             };
 
+            UpdateLoraCompatibility(activeCopy);
             ActiveLoras.Add(activeCopy);
             SelectedActiveLora = activeCopy;
         }

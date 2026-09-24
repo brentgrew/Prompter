@@ -1229,5 +1229,138 @@ namespace Prompter.Tests
                 }
             }
         }
+
+        [TestMethod]
+        public void TestChatMessageInlineEditingLifecycle()
+        {
+            var msg = new ChatMessage("User", "Original prompt text");
+
+            Assert.IsFalse(msg.IsEditing);
+            Assert.AreEqual("Original prompt text", msg.Content);
+            Assert.AreEqual(string.Empty, msg.EditBuffer);
+
+            // Begin edit
+            msg.BeginEdit();
+            Assert.IsTrue(msg.IsEditing);
+            Assert.AreEqual("Original prompt text", msg.EditBuffer);
+
+            // Type new prompt into EditBuffer
+            msg.EditBuffer = "Updated prompt with new details";
+            // Content should remain original until committed
+            Assert.AreEqual("Original prompt text", msg.Content);
+
+            // Cancel edit
+            msg.CancelEdit();
+            Assert.IsFalse(msg.IsEditing);
+            Assert.AreEqual("Original prompt text", msg.Content);
+            Assert.AreEqual(string.Empty, msg.EditBuffer);
+
+            // Begin edit and commit
+            msg.BeginEdit();
+            msg.EditBuffer = "Committed edited prompt";
+            msg.CommitEdit();
+
+            Assert.IsFalse(msg.IsEditing);
+            Assert.AreEqual("Committed edited prompt", msg.Content);
+            Assert.AreEqual(string.Empty, msg.EditBuffer);
+        }
+
+        [TestMethod]
+        public void TestLoraArchitectureDetectionAndCompatibility()
+        {
+            var ponyModel = new LocalModelInfo
+            {
+                ModelId = "Pony v23",
+                Name = "Pony v23",
+                IsImageModel = true,
+                Family = "SDXL"
+            };
+
+            var fluxModel = new LocalModelInfo
+            {
+                ModelId = "Flux.1-dev",
+                Name = "Flux.1-dev",
+                IsImageModel = true,
+                Family = "Flux"
+            };
+
+            var fluxLora = new LoraModelInfo
+            {
+                Id = "C/face-detailer.safetensors",
+                Name = "face-detailer.safetensors",
+                Title = "Face Detailer",
+                RelativePath = "C/face-detailer.safetensors",
+                Architecture = "Flux.1-dev/lora"
+            };
+
+            var sdxlLora = new LoraModelInfo
+            {
+                Id = "SDXL/submerged_v1_pony.safetensors",
+                Name = "submerged_v1_pony.safetensors",
+                Title = "Submerged Pony",
+                RelativePath = "SDXL/submerged_v1_pony.safetensors",
+                Architecture = "SDXL"
+            };
+
+            // Architecture badges
+            Assert.AreEqual("Flux", fluxLora.ArchitectureBadge);
+            Assert.AreEqual("SDXL", sdxlLora.ArchitectureBadge);
+
+            // Pony (SDXL) vs Flux LoRA -> Incompatible!
+            Assert.IsFalse(fluxLora.IsCompatibleWith(ponyModel));
+            var warning = fluxLora.IncompatibleWarning(ponyModel);
+            Assert.IsTrue(warning.Contains("Architecture Mismatch"));
+            Assert.IsTrue(warning.Contains("Flux"));
+
+            // Pony (SDXL) vs SDXL LoRA -> Compatible!
+            Assert.IsTrue(sdxlLora.IsCompatibleWith(ponyModel));
+            Assert.AreEqual(string.Empty, sdxlLora.IncompatibleWarning(ponyModel));
+
+            // Flux model vs Flux LoRA -> Compatible!
+            Assert.IsTrue(fluxLora.IsCompatibleWith(fluxModel));
+            Assert.AreEqual(string.Empty, fluxLora.IncompatibleWarning(fluxModel));
+
+            // Flux model vs SDXL LoRA -> Incompatible!
+            Assert.IsFalse(sdxlLora.IsCompatibleWith(fluxModel));
+        }
+
+        [TestMethod]
+        public void TestMainViewModelLoraArchitectureWarning()
+        {
+            var vm = new MainViewModel();
+
+            var ponyModel = new LocalModelInfo
+            {
+                ModelId = "Pony v23",
+                Name = "Pony v23",
+                IsImageModel = true,
+                Family = "SDXL"
+            };
+            vm.SelectedImageModel = ponyModel;
+
+            var fluxLora = new LoraModelInfo
+            {
+                Id = "C/face-detailer.safetensors",
+                Name = "face-detailer.safetensors",
+                Title = "Face Detailer",
+                RelativePath = "C/face-detailer.safetensors",
+                Architecture = "Flux.1-dev/lora"
+            };
+
+            // Initially no active LoRAs
+            Assert.IsFalse(vm.HasIncompatibleActiveLoras);
+            Assert.AreEqual(string.Empty, vm.IncompatibleLorasWarningText);
+
+            // Add incompatible Flux LoRA while Pony model is active
+            vm.ActiveLoras.Add(fluxLora);
+            Assert.IsTrue(vm.HasIncompatibleActiveLoras);
+            Assert.IsTrue(vm.IncompatibleLorasWarningText.Contains("Mismatch"));
+            Assert.IsTrue(vm.IncompatibleLorasWarningText.Contains("face-detailer"));
+
+            // Clear LoRAs
+            vm.ActiveLoras.Clear();
+            Assert.IsFalse(vm.HasIncompatibleActiveLoras);
+            Assert.AreEqual(string.Empty, vm.IncompatibleLorasWarningText);
+        }
     }
 }

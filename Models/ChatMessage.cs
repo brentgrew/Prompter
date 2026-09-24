@@ -216,6 +216,54 @@ namespace Prompter.Models
             }
         }
 
+        private bool _isEditing;
+        private string _editBuffer = string.Empty;
+
+        public bool IsEditing
+        {
+            get => _isEditing;
+            set
+            {
+                if (_isEditing != value)
+                {
+                    _isEditing = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string EditBuffer
+        {
+            get => _editBuffer;
+            set
+            {
+                if (_editBuffer != value)
+                {
+                    _editBuffer = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public void BeginEdit()
+        {
+            EditBuffer = Content;
+            IsEditing = true;
+        }
+
+        public void CancelEdit()
+        {
+            IsEditing = false;
+            EditBuffer = string.Empty;
+        }
+
+        public void CommitEdit()
+        {
+            Content = EditBuffer;
+            IsEditing = false;
+            EditBuffer = string.Empty;
+        }
+
         public bool IsUser => string.Equals(Role, "User", StringComparison.OrdinalIgnoreCase);
         public bool IsAssistant => string.Equals(Role, "Assistant", StringComparison.OrdinalIgnoreCase);
         public bool IsError => string.Equals(Role, "Error", StringComparison.OrdinalIgnoreCase);

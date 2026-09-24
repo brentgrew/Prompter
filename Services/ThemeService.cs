@@ -193,6 +193,12 @@ namespace Prompter.Services
                 SetResource(resources, "ChatThinkingBackgroundBrush", ColorFromHex("#141D2E"));
                 SetResource(resources, "ChatThinkingBorderBrush", ColorFromHex("#293548"));
                 SetResource(resources, "ChatThinkingForegroundBrush", ColorFromHex("#94A3B8"));
+
+                // Modern ScrollBar Resources
+                SetResource(resources, "ScrollBarTrackBrush", ColorFromHex("#090D16"));
+                SetResource(resources, "ScrollBarThumbBrush", ColorFromHex("#334155"));
+                SetResource(resources, "ScrollBarThumbHoverBrush", ColorFromHex("#475569"));
+                SetResource(resources, "ScrollBarThumbPressedBrush", ColorFromHex("#64748B"));
             }
             else
             {
@@ -277,6 +283,12 @@ namespace Prompter.Services
                 SetResource(resources, "ChatThinkingBackgroundBrush", ColorFromHex("#F1F5F9"));
                 SetResource(resources, "ChatThinkingBorderBrush", ColorFromHex("#E2E8F0"));
                 SetResource(resources, "ChatThinkingForegroundBrush", ColorFromHex("#64748B"));
+
+                // Modern ScrollBar Resources
+                SetResource(resources, "ScrollBarTrackBrush", ColorFromHex("#F1F5F9"));
+                SetResource(resources, "ScrollBarThumbBrush", ColorFromHex("#CBD5E1"));
+                SetResource(resources, "ScrollBarThumbHoverBrush", ColorFromHex("#94A3B8"));
+                SetResource(resources, "ScrollBarThumbPressedBrush", ColorFromHex("#64748B"));
             }
 
             // Dynamically update native title bars for all active windows

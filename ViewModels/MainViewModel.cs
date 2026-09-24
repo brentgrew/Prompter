@@ -104,6 +104,8 @@ namespace Prompter.ViewModels
                 OnPropertyChanged(nameof(ActiveLorasCountText));
                 OnPropertyChanged(nameof(ActiveLorasChipText));
                 OnPropertyChanged(nameof(ActiveLorasSummary));
+                OnPropertyChanged(nameof(HasIncompatibleActiveLoras));
+                OnPropertyChanged(nameof(IncompatibleLorasWarningText));
                 ClearActiveLorasCommand.RaiseCanExecuteChanged();
             };
 
@@ -138,6 +140,21 @@ namespace Prompter.ViewModels
         public string ActiveLorasCountText => $"{ActiveLoras.Count} active";
         public string ActiveLorasChipText => HasActiveLoras ? $"🧬 {ActiveLoras.Count} LoRA{(ActiveLoras.Count == 1 ? "" : "s")}" : "🧬 LoRAs";
         public string ActiveLorasSummary => string.Join(", ", ActiveLoras.Select(l => l.DisplayNameWithWeight));
+
+        public bool HasIncompatibleActiveLoras =>
+            SelectedImageModel != null && ActiveLoras.Any(l => !l.IsCompatibleWith(SelectedImageModel));
+
+        public string IncompatibleLorasWarningText
+        {
+            get
+            {
+                if (SelectedImageModel == null) return string.Empty;
+                var bad = ActiveLoras.Where(l => !l.IsCompatibleWith(SelectedImageModel)).ToList();
+                if (bad.Count == 0) return string.Empty;
+                var names = string.Join(", ", bad.Select(b => $"{b.FileNameWithoutExtension} ({b.ArchitectureBadge})"));
+                return $"⚠️ Mismatch: {names} may have no effect with {SelectedImageModel.FamilyName} base model ({SelectedImageModel.Name}).";
+            }
+        }
 
         public PromptFolder? SelectedFolder
         {
@@ -269,6 +286,8 @@ namespace Prompter.ViewModels
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(CurrentModel));
                     OnPropertyChanged(nameof(ActiveModelDisplayName));
+                    OnPropertyChanged(nameof(HasIncompatibleActiveLoras));
+                    OnPropertyChanged(nameof(IncompatibleLorasWarningText));
                     if (IsImageMode)
                     {
                         _selectedModel = value;
@@ -891,6 +910,54 @@ namespace Prompter.ViewModels
             var text = ChatInputText?.Trim();
             if (string.IsNullOrEmpty(text) || IsChatGenerating) return;
 
+            var cleanText = CleanPrompt(text);
+            var userMsg = new ChatMessage("User", cleanText);
+            ChatMessages.Add(userMsg);
+            ChatInputText = string.Empty;
+
+            await GenerateFromExistingUserMessageAsync(userMsg);
+        }
+
+        public async Task CommitEditUserPromptAsync(ChatMessage msg)
+        {
+            if (msg == null) return;
+
+            if (IsChatGenerating)
+            {
+                ShowStatus("⚠️ A generation task is currently running. Please wait or stop it first.");
+                return;
+            }
+
+            msg.CommitEdit();
+
+            var index = ChatMessages.IndexOf(msg);
+            if (index >= 0)
+            {
+                while (ChatMessages.Count > index + 1)
+                {
+                    var toRemove = ChatMessages[ChatMessages.Count - 1];
+                    try
+                    {
+                        if (toRemove.IsImageMessage && !string.IsNullOrEmpty(toRemove.ImagePath) && File.Exists(toRemove.ImagePath))
+                        {
+                            File.Delete(toRemove.ImagePath);
+                        }
+                    }
+                    catch { }
+                    ChatMessages.RemoveAt(ChatMessages.Count - 1);
+                }
+            }
+
+            ShowStatus("✓ Prompt saved. Following chat history removed.");
+
+            await GenerateFromExistingUserMessageAsync(msg);
+        }
+
+        private async Task GenerateFromExistingUserMessageAsync(ChatMessage userMsg)
+        {
+            var text = userMsg.Content?.Trim();
+            if (string.IsNullOrEmpty(text)) return;
+
             if (IsImageMode)
             {
                 if (SelectedImageModel == null)
@@ -913,11 +980,6 @@ namespace Prompter.ViewModels
                 }
 
                 var cleanText = CleanPrompt(text);
-
-                // Add user message to conversation
-                var userMsg = new ChatMessage("User", cleanText);
-                ChatMessages.Add(userMsg);
-                ChatInputText = string.Empty;
 
                 var activeLorasCopy = ActiveLoras.ToList();
                 var lorasSummary = activeLorasCopy.Count > 0 ? string.Join(", ", activeLorasCopy.Select(l => l.DisplayNameWithWeight)) : null;
@@ -1017,11 +1079,6 @@ namespace Prompter.ViewModels
                     }
                 }
 
-                // Add user message to conversation
-                var userMsg = new ChatMessage("User", text);
-                ChatMessages.Add(userMsg);
-                ChatInputText = string.Empty;
-
                 // Add empty assistant response bubble to stream tokens into
                 var assistantMsg = new ChatMessage("Assistant", string.Empty, model.Name)
                 {
@@ -1105,7 +1162,7 @@ namespace Prompter.ViewModels
 
         public void ExecuteManageLoras()
         {
-            var dlg = new Views.LoraManagerDialog(ActiveLoras, _swarmUiService)
+            var dlg = new Views.LoraManagerDialog(ActiveLoras, _swarmUiService, null, SelectedImageModel)
             {
                 Owner = Application.Current?.MainWindow
             };

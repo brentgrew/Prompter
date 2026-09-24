@@ -71,20 +71,29 @@ namespace Prompter.Models
             }
         }
 
+        public bool IsFlux =>
+            Architecture.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
+            Name.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
+            Title.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
+            RelativePath.Contains("flux", StringComparison.OrdinalIgnoreCase);
+
         public bool IsSdxl =>
-            Architecture.Contains("xl", StringComparison.OrdinalIgnoreCase) ||
-            Architecture.Contains("sdxl", StringComparison.OrdinalIgnoreCase) ||
-            Architecture.Contains("pony", StringComparison.OrdinalIgnoreCase) ||
-            Name.Contains("xl", StringComparison.OrdinalIgnoreCase) ||
-            Name.Contains("sdxl", StringComparison.OrdinalIgnoreCase) ||
-            Name.Contains("pony", StringComparison.OrdinalIgnoreCase) ||
-            Title.Contains("xl", StringComparison.OrdinalIgnoreCase);
+            !IsFlux && (
+                Architecture.Contains("xl", StringComparison.OrdinalIgnoreCase) ||
+                Architecture.Contains("sdxl", StringComparison.OrdinalIgnoreCase) ||
+                Architecture.Contains("pony", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("xl", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("sdxl", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("pony", StringComparison.OrdinalIgnoreCase) ||
+                Title.Contains("xl", StringComparison.OrdinalIgnoreCase) ||
+                Title.Contains("pony", StringComparison.OrdinalIgnoreCase));
 
         public bool IsSd15 =>
-            Architecture.Contains("1.5", StringComparison.OrdinalIgnoreCase) ||
-            Architecture.Contains("v1", StringComparison.OrdinalIgnoreCase) ||
-            Name.Contains("1.5", StringComparison.OrdinalIgnoreCase) ||
-            Name.Contains("v1-5", StringComparison.OrdinalIgnoreCase);
+            !IsFlux && !IsSdxl && (
+                Architecture.Contains("1.5", StringComparison.OrdinalIgnoreCase) ||
+                Architecture.Contains("v1", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("1.5", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("v1-5", StringComparison.OrdinalIgnoreCase));
 
         public bool IsNsfw =>
             Folder.StartsWith("NSFW", StringComparison.OrdinalIgnoreCase) ||
@@ -96,10 +105,58 @@ namespace Prompter.Models
         {
             get
             {
+                if (IsFlux) return "Flux";
                 if (IsSdxl) return "SDXL";
                 if (IsSd15) return "SD 1.5";
                 if (!string.IsNullOrEmpty(Architecture)) return Architecture;
                 return "LoRA";
+            }
+        }
+
+        public bool IsCompatibleWith(LocalModelInfo? model)
+        {
+            if (model == null || !model.IsImageModel) return true;
+            if (model.IsFlux) return IsFlux;
+            if (model.IsSdxl) return IsSdxl || (!IsFlux && !IsSd15);
+            if (model.IsSd15) return IsSd15 || (!IsFlux && !IsSdxl);
+            return true;
+        }
+
+        public string IncompatibleWarning(LocalModelInfo? model)
+        {
+            if (model == null || !model.IsImageModel || IsCompatibleWith(model))
+                return string.Empty;
+
+            var loraArch = ArchitectureBadge;
+            var modelArch = model.FamilyName;
+            return $"⚠️ Architecture Mismatch: {loraArch} LoRA cannot be applied to {modelArch} model in SwarmUI/ComfyUI.";
+        }
+
+        private bool _isCompatibleWithActiveModel = true;
+        public bool IsCompatibleWithActiveModel
+        {
+            get => _isCompatibleWithActiveModel;
+            set
+            {
+                if (_isCompatibleWithActiveModel != value)
+                {
+                    _isCompatibleWithActiveModel = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private string _compatibilityWarningText = string.Empty;
+        public string CompatibilityWarningText
+        {
+            get => _compatibilityWarningText;
+            set
+            {
+                if (_compatibilityWarningText != value)
+                {
+                    _compatibilityWarningText = value;
+                    OnPropertyChanged();
+                }
             }
         }
 

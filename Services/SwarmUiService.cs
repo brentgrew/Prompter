@@ -523,11 +523,69 @@ namespace Prompter.Services
                     ["height"] = result.Height
                 };
 
+                var effectivePrompt = prompt;
+
                 if (loras != null && loras.Count > 0)
                 {
-                    requestPayload["loras"] = loras.Select(l => l.RelativePath).ToList();
-                    requestPayload["loraweights"] = loras.Select(l => l.Strength.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)).ToList();
+                    var loraCleanNames = new List<string>();
+                    var loraWeights = new List<string>();
+                    var loraTags = new List<string>();
+                    var triggerWords = new List<string>();
+
+                    foreach (var lora in loras)
+                    {
+                        // Clean model name: strip .safetensors and leading slashes (SwarmUI convention)
+                        var clean = lora.RelativePath.Replace('\\', '/').TrimStart('/');
+                        if (clean.EndsWith(".safetensors", StringComparison.OrdinalIgnoreCase))
+                        {
+                            clean = clean.Substring(0, clean.Length - ".safetensors".Length);
+                        }
+
+                        var weightStr = lora.Strength.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+                        loraCleanNames.Add(clean);
+                        loraWeights.Add(weightStr);
+
+                        // Native SwarmUI prompt tag: <lora:clean_name:weight>
+                        if (!prompt.Contains($"<lora:{clean}", StringComparison.OrdinalIgnoreCase) &&
+                            !prompt.Contains($"<lora:{lora.FileNameWithoutExtension}", StringComparison.OrdinalIgnoreCase))
+                        {
+                            loraTags.Add($"<lora:{clean}:{weightStr}>");
+                        }
+
+                        // Trigger phrase injection if not already in user prompt
+                        if (!string.IsNullOrWhiteSpace(lora.TriggerPhrase))
+                        {
+                            var parts = lora.TriggerPhrase.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                            foreach (var part in parts)
+                            {
+                                if (!string.IsNullOrWhiteSpace(part) &&
+                                    !prompt.Contains(part, StringComparison.OrdinalIgnoreCase) &&
+                                    !triggerWords.Contains(part, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    triggerWords.Add(part);
+                                }
+                            }
+                        }
+                    }
+
+                    var sb = new StringBuilder(prompt);
+                    if (triggerWords.Count > 0)
+                    {
+                        sb.Append(", ").Append(string.Join(", ", triggerWords));
+                    }
+                    if (loraTags.Count > 0)
+                    {
+                        sb.Append(" ").Append(string.Join(" ", loraTags));
+                    }
+                    effectivePrompt = sb.ToString().Trim();
+
+                    // Also pass structured SwarmUI parameters with global confinement (-1)
+                    requestPayload["loras"] = loraCleanNames;
+                    requestPayload["loraweights"] = loraWeights;
+                    requestPayload["lorasectionconfinement"] = loraCleanNames.Select(_ => "-1").ToList();
                 }
+
+                requestPayload["prompt"] = effectivePrompt;
 
                 var jsonContent = new StringContent(
                     JsonSerializer.Serialize(requestPayload),

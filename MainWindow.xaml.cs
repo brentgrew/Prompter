@@ -152,23 +152,74 @@ namespace Prompter
 
         private void EditUserPrompt_Click(object sender, RoutedEventArgs e)
         {
-            string? prompt = null;
             if (sender is FrameworkElement elem)
             {
+                var msg = elem.Tag as ChatMessage ?? elem.DataContext as ChatMessage;
+                if (msg != null && msg.IsUser)
+                {
+                    msg.BeginEdit();
+                    e.Handled = true;
+                    return;
+                }
+
+                // Fallback for non-user messages (e.g. assistant image prompt)
+                string? prompt = null;
                 if (elem.Tag is string s)
                     prompt = s;
-                else if (elem.Tag is ChatMessage msg)
+                else if (msg != null)
                     prompt = !string.IsNullOrWhiteSpace(msg.ImagePrompt) ? msg.ImagePrompt : msg.Content;
-                else if (elem.DataContext is ChatMessage dcMsg)
-                    prompt = !string.IsNullOrWhiteSpace(dcMsg.ImagePrompt) ? dcMsg.ImagePrompt : dcMsg.Content;
-            }
 
-            if (!string.IsNullOrEmpty(prompt))
+                if (!string.IsNullOrEmpty(prompt))
+                {
+                    ViewModel.LoadPromptForEditing(prompt);
+                    txtChatInput.Focus();
+                    txtChatInput.Select(txtChatInput.Text.Length, 0);
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void EditPromptTextBox_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && tb.IsVisible)
             {
-                ViewModel.LoadPromptForEditing(prompt);
-                txtChatInput.Focus();
-                txtChatInput.Select(txtChatInput.Text.Length, 0);
-                e.Handled = true;
+                tb.Focus();
+                tb.Select(tb.Text.Length, 0);
+            }
+        }
+
+        private void EditPromptTextBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (sender is TextBox tb && tb.IsVisible)
+            {
+                tb.Focus();
+                tb.Select(tb.Text.Length, 0);
+            }
+        }
+
+        private void CancelEditPrompt_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement elem)
+            {
+                var msg = elem.Tag as ChatMessage ?? elem.DataContext as ChatMessage;
+                if (msg != null)
+                {
+                    msg.CancelEdit();
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void SaveEditPrompt_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement elem)
+            {
+                var msg = elem.Tag as ChatMessage ?? elem.DataContext as ChatMessage;
+                if (msg != null)
+                {
+                    _ = ViewModel.CommitEditUserPromptAsync(msg);
+                    e.Handled = true;
+                }
             }
         }
 
