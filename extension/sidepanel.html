@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prompter - AI Prompt Manager</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body class="sidepanel-view">
+  <!-- Top App Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <span>Prompter</span>
+    </div>
+    <div class="header-actions">
+      <button id="btn-manage-folders" class="btn-icon" title="Manage Folders">
+        <span>📁</span>
+      </button>
+      <button id="btn-vault" class="btn-icon" title="Import / Export Vault">
+        <span>💾</span>
+      </button>
+      <button id="btn-new-prompt" class="btn-primary" title="Create New Prompt">
+        <span>➕</span>
+        <span>Prompt</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Search Input Bar -->
+  <div class="search-container">
+    <div class="search-input-wrapper">
+      <span class="search-icon">🔍</span>
+      <input id="search-input" class="search-input" type="text" placeholder="Search prompts... (Press / to focus)" autocomplete="off" />
+      <button id="search-clear" class="search-clear" title="Clear search">✕</button>
+    </div>
+  </div>
+
+  <!-- Folder Filter Tabs -->
+  <div id="folder-tabs" class="folder-tabs-wrapper">
+    <!-- Rendered dynamically -->
+  </div>
+
+  <!-- Main Prompts List Container -->
+  <main id="prompts-list" class="prompts-container">
+    <!-- Rendered dynamically -->
+  </main>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- 1. Add / Edit Prompt Modal -->
+  <div id="modal-prompt" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-prompt-title" class="modal-title">New Prompt</h3>
+        <button class="btn-icon modal-close" data-modal="modal-prompt">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="prompt-edit-id" value="" />
+        
+        <div class="form-group">
+          <label class="form-label" for="prompt-title">Prompt Title</label>
+          <input id="prompt-title" class="form-input" type="text" placeholder="e.g. Code Reviewer, Email Polish..." />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prompt-folder">Folder</label>
+          <select id="prompt-folder" class="form-select">
+            <!-- Rendered dynamically -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" for="prompt-content">Prompt Template / Text</label>
+            <button id="btn-clean-prompt" type="button" class="btn-icon" style="padding: 2px 7px; font-size: 11px;" title="Strip leading 'Prompt:', fences, and quotes">
+              🧹 Clean Prefix
+            </button>
+          </div>
+          <textarea id="prompt-content" class="form-textarea" placeholder="Enter your prompt here... Use [PLACEHOLDERS] for user variables."></textarea>
+          <div class="textarea-footer">
+            <span id="prompt-stats">0 words · 0 chars</span>
+            <span>Supports 1-click web insertion</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary modal-close" data-modal="modal-prompt">Cancel</button>
+        <button id="btn-save-prompt" class="btn-primary">Save Prompt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Folder Manager Modal -->
+  <div id="modal-folders" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Manage Folders</h3>
+        <button class="btn-icon modal-close" data-modal="modal-folders">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="new-folder-name">Create New Folder</label>
+          <div style="display: flex; gap: 8px;">
+            <input id="new-folder-name" class="form-input" type="text" placeholder="Folder name..." style="flex: 1;" />
+            <button id="btn-add-folder" class="btn-primary">Add</button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label">Existing Folders</label>
+          <div id="folders-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary modal-close" data-modal="modal-folders">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Vault Backup & Sync Modal -->
+  <div id="modal-vault" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Vault Backup & Sync</h3>
+        <button class="btn-icon modal-close" data-modal="modal-vault">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-muted); font-size: 12px; line-height: 1.45;">
+          Prompter extension is 100% compatible with Prompter desktop. You can export your prompts to a <code style="color: var(--accent-light);">prompter_vault.json</code> file or import an existing vault.
+        </p>
+
+        <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-weight: 700; color: #FFFFFF; font-size: 12.5px;">Export Vault</div>
+          <div style="font-size: 11.5px; color: var(--text-subtle);">Download your entire collection of folders and prompts to a JSON backup file.</div>
+          <button id="btn-export-vault" class="btn-secondary" style="align-self: flex-start;">
+            <span>📥</span>
+            <span>Download prompter_vault.json</span>
+          </button>
+        </div>
+
+        <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-weight: 700; color: #FFFFFF; font-size: 12.5px;">Import Vault</div>
+          <div style="font-size: 11.5px; color: var(--text-subtle);">Select a <code style="color: var(--accent-light);">prompter_vault.json</code> file from your computer or Prompter desktop app.</div>
+          
+          <div style="display: flex; gap: 14px; font-size: 12px; margin: 4px 0;">
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+              <input type="radio" name="import-mode" value="merge" checked />
+              <span>Merge with existing</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+              <input type="radio" name="import-mode" value="replace" />
+              <span>Replace all</span>
+            </label>
+          </div>
+
+          <input id="vault-file-input" type="file" accept=".json,application/json" style="display: none;" />
+          <button id="btn-trigger-import" class="btn-secondary" style="align-self: flex-start;">
+            <span>📤</span>
+            <span>Select File to Import...</span>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary modal-close" data-modal="modal-vault">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Unlock Protected Folder Modal -->
+  <div id="modal-unlock" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">🔒 Unlock Protected Folder</h3>
+        <button class="btn-icon modal-close" data-modal="modal-unlock">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-muted); font-size: 12px;">
+          This folder is encrypted with a password. Enter your password to view and use its prompts.
+        </p>
+        <input type="hidden" id="unlock-folder-id" value="" />
+        <div class="form-group">
+          <label class="form-label" for="unlock-password">Folder Password</label>
+          <input id="unlock-password" class="form-input" type="password" placeholder="Enter password..." />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary modal-close" data-modal="modal-unlock">Cancel</button>
+        <button id="btn-submit-unlock" class="btn-primary">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="app-toast">
+    <span id="toast-icon">⚡</span>
+    <span id="toast-text">Action completed</span>
+  </div>
+
+  <!-- Scripts -->
+  <script src="crypto.js"></script>
+  <script src="storage.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
