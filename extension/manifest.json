@@ -11,6 +11,9 @@
     "contextMenus",
     "clipboardWrite"
   ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Prompter - AI Prompt Manager",

@@ -361,7 +361,11 @@
   async function insertPromptIntoActiveTab(text) {
     if (!text) return;
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab || !tab.id) {
+        const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        tab = tabs && tabs[0];
+      }
       if (!tab || !tab.id) {
         copyToClipboard(text, 'Copied prompt to clipboard (no active web tab)');
         return;
@@ -383,12 +387,19 @@
         args: [text]
       });
 
-      await chrome.scripting.executeScript({
+      const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ['injector.js']
       });
 
-      showToast('Prompt inserted into page!', '⚡');
+      const res = results && results[0] && results[0].result;
+      if (res && res.success) {
+        showToast('Prompt inserted into page!', '⚡');
+      } else if (res && res.copied) {
+        showToast('Copied to clipboard (no text box found)', '📋');
+      } else {
+        showToast('Prompt inserted into page!', '⚡');
+      }
     } catch (err) {
       console.warn('Direct injection failed, falling back to clipboard copy:', err);
       copyToClipboard(text, 'Copied to clipboard (insertion fallback)');
