@@ -56,13 +56,16 @@
   const toastText = document.getElementById('toast-text');
 
   // Theme Management
-  const DEFAULT_THEME = 'system';
+  const DEFAULT_THEME = 'dark';
   let currentTheme = DEFAULT_THEME;
 
   async function initTheme() {
     try {
       const data = await chrome.storage.local.get('prompter_theme');
-      currentTheme = data.prompter_theme || DEFAULT_THEME;
+      currentTheme = data.prompter_theme;
+      if (currentTheme !== 'light' && currentTheme !== 'dark') {
+        currentTheme = DEFAULT_THEME;
+      }
     } catch (e) {
       currentTheme = DEFAULT_THEME;
     }
@@ -73,22 +76,21 @@
   function applyTheme(theme) {
     if (theme === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');
-    } else if (theme === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
     } else {
-      document.documentElement.setAttribute('data-theme', 'system');
+      document.documentElement.setAttribute('data-theme', 'dark');
     }
   }
 
   function updateThemeUI(theme) {
-    const radio = document.querySelector(`input[name="prompter-theme"][value="${theme}"]`);
+    const activeTheme = (theme === 'light') ? 'light' : 'dark';
+    const radio = document.querySelector(`input[name="prompter-theme"][value="${activeTheme}"]`);
     if (radio) {
       radio.checked = true;
     }
     // Update active highlight class on theme cards
     document.querySelectorAll('.theme-option-card').forEach(card => {
       const cardRadio = card.querySelector('input[type="radio"]');
-      if (cardRadio && cardRadio.value === theme) {
+      if (cardRadio && cardRadio.value === activeTheme) {
         card.classList.add('active');
       } else {
         card.classList.remove('active');
@@ -97,11 +99,11 @@
   }
 
   async function setTheme(theme) {
-    currentTheme = theme;
-    applyTheme(theme);
-    updateThemeUI(theme);
-    await chrome.storage.local.set({ prompter_theme: theme });
-    const label = theme === 'system' ? 'Same as Chrome (Auto)' : (theme === 'dark' ? 'Dark' : 'Light');
+    currentTheme = (theme === 'light') ? 'light' : 'dark';
+    applyTheme(currentTheme);
+    updateThemeUI(currentTheme);
+    await chrome.storage.local.set({ prompter_theme: currentTheme });
+    const label = currentTheme === 'dark' ? 'Dark' : 'Light';
     showToast(`Color theme set to ${label}`, '🎨');
   }
 
@@ -148,7 +150,7 @@
     // Cross-view theme sync (Side Panel <-> Popup)
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.prompter_theme) {
-        const newTheme = changes.prompter_theme.newValue || DEFAULT_THEME;
+        const newTheme = (changes.prompter_theme.newValue === 'light') ? 'light' : 'dark';
         currentTheme = newTheme;
         applyTheme(newTheme);
         updateThemeUI(newTheme);
