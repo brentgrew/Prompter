@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Prompter - AI Prompt Manager",
+  "name": "Prompter",
   "version": "1.0.0",
   "description": "Organize, search, and 1-click insert your AI prompts directly into ChatGPT, Claude, Midjourney, SwarmUI, and any web page.",
   "permissions": [
@@ -16,7 +16,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Prompter - AI Prompt Manager",
+    "default_title": "Prompter",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

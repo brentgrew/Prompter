@@ -142,6 +142,8 @@ header {
   display: block;
 }
 
+.header-left,
+.header-right,
 .header-actions {
   display: flex;
   align-items: center;
