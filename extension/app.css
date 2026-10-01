@@ -1,17 +1,25 @@
-/* Prompter Chrome Extension - Dark Theme CSS */
-:root {
+/* Prompter Chrome Extension - Themes & Styling */
+:root,
+[data-theme="dark"] {
   --bg-primary: #0F172A;      /* Slate 900 */
   --bg-secondary: #1E293B;    /* Slate 800 */
   --bg-tertiary: #334155;     /* Slate 700 */
   --bg-input: #0B0F19;        /* Deep Dark */
   --border-color: #334155;    /* Slate 700 */
   --border-subtle: #1E293B;
+  --border-hover: #64748B;
   --accent-primary: #6366F1;   /* Indigo 500 */
   --accent-hover: #4F46E5;     /* Indigo 600 */
   --accent-light: #818CF8;
   --text-main: #F8FAFC;       /* Slate 50 */
+  --text-title: #FFFFFF;
   --text-muted: #94A3B8;      /* Slate 400 */
   --text-subtle: #64748B;     /* Slate 500 */
+  --modal-header-bg: #182234;
+  --card-hover-bg: #1A2333;
+  --card-folder-bg: rgba(56, 189, 248, 0.15);
+  --card-folder-color: #38BDF8;
+  --card-folder-border: rgba(56, 189, 248, 0.3);
   --success: #10B981;         /* Emerald 500 */
   --success-hover: #059669;
   --danger: #EF4444;          /* Red 500 */
@@ -24,6 +32,66 @@
   --radius-full: 9999px;
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+}
+
+/* Light Theme Variables */
+[data-theme="light"] {
+  --bg-primary: #F8FAFC;      /* Slate 50 */
+  --bg-secondary: #FFFFFF;    /* Pure White */
+  --bg-tertiary: #E2E8F0;     /* Slate 200 */
+  --bg-input: #FFFFFF;        /* Pure White */
+  --border-color: #CBD5E1;    /* Slate 300 */
+  --border-subtle: #E2E8F0;
+  --border-hover: #94A3B8;
+  --accent-primary: #6366F1;   /* Indigo 500 */
+  --accent-hover: #4F46E5;     /* Indigo 600 */
+  --accent-light: #4F46E5;
+  --text-main: #0F172A;       /* Slate 900 */
+  --text-title: #0F172A;      /* Slate 900 */
+  --text-muted: #475569;      /* Slate 600 */
+  --text-subtle: #64748B;     /* Slate 500 */
+  --modal-header-bg: #F1F5F9; /* Slate 100 */
+  --card-hover-bg: #F1F5F9;   /* Slate 100 */
+  --card-folder-bg: rgba(14, 165, 233, 0.12);
+  --card-folder-color: #0284C7;
+  --card-folder-border: rgba(14, 165, 233, 0.25);
+  --success: #10B981;
+  --success-hover: #059669;
+  --danger: #EF4444;
+  --danger-hover: #DC2626;
+  --warning: #D97706;
+  --badge-bg: #E2E8F0;
+  --shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+}
+
+/* Chrome Default (Auto): matches Chrome/OS preference when data-theme="system" or unset */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]),
+  [data-theme="system"] {
+    --bg-primary: #F8FAFC;
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary: #E2E8F0;
+    --bg-input: #FFFFFF;
+    --border-color: #CBD5E1;
+    --border-subtle: #E2E8F0;
+    --border-hover: #94A3B8;
+    --accent-primary: #6366F1;
+    --accent-hover: #4F46E5;
+    --accent-light: #4F46E5;
+    --text-main: #0F172A;
+    --text-title: #0F172A;
+    --text-muted: #475569;
+    --text-subtle: #64748B;
+    --modal-header-bg: #F1F5F9;
+    --card-hover-bg: #F1F5F9;
+    --card-folder-bg: rgba(14, 165, 233, 0.12);
+    --card-folder-color: #0284C7;
+    --card-folder-border: rgba(14, 165, 233, 0.25);
+    --badge-bg: #E2E8F0;
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  }
 }
 
 * {
@@ -91,7 +159,7 @@ header {
   gap: 7px;
   font-weight: 700;
   font-size: 15px;
-  color: #FFFFFF;
+  color: var(--text-title);
   letter-spacing: -0.2px;
 }
 
@@ -145,8 +213,9 @@ button {
   border: 1px solid var(--border-color);
 }
 .btn-secondary:hover {
-  background: #475569;
-  border-color: #64748B;
+  background: var(--bg-tertiary);
+  border-color: var(--border-hover);
+  color: var(--text-main);
 }
 
 .btn-icon {
@@ -158,31 +227,70 @@ button {
 .btn-icon:hover {
   background: var(--bg-tertiary);
   color: var(--text-main);
-  border-color: #64748B;
+  border-color: var(--border-hover);
 }
 
-.btn-insert {
-  background: linear-gradient(135deg, #10B981, #059669);
-  color: #FFFFFF;
-  font-size: 11.5px;
-  padding: 5px 9px;
-  border-radius: var(--radius-sm);
-}
-.btn-insert:hover {
-  background: linear-gradient(135deg, #34D399, #10B981);
+/* Uniform Card Action Buttons */
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.btn-copy {
-  background: var(--bg-tertiary);
-  color: #E2E8F0;
-  font-size: 11.5px;
-  padding: 5px 9px;
-  border-radius: var(--radius-sm);
+.card-actions .btn-action {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  background: var(--bg-primary);
+  color: var(--text-muted);
   border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+  flex-shrink: 0;
 }
-.btn-copy:hover {
-  background: #475569;
-  color: #FFFFFF;
+
+.card-actions .btn-action:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-main);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.card-actions .btn-action:active {
+  transform: translateY(0);
+}
+
+.card-actions .btn-action-insert {
+  color: var(--success);
+}
+.card-actions .btn-action-insert:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: var(--success);
+  color: #34D399;
+}
+
+.card-actions .btn-action-copy:hover {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: var(--accent-light);
+  color: var(--accent-light);
+}
+
+.card-actions .btn-action-edit:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-hover);
+  color: var(--text-main);
+}
+
+.card-actions .btn-action-delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: var(--danger);
+  color: #F87171;
 }
 
 .btn-danger {
@@ -321,7 +429,7 @@ button {
 }
 .prompt-card:hover {
   border-color: var(--accent-light);
-  background: #1A2333;
+  background: var(--card-hover-bg);
   transform: translateY(-1px);
 }
 
@@ -335,7 +443,7 @@ button {
 .card-title {
   font-size: 13.5px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--text-title);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -343,9 +451,9 @@ button {
 }
 
 .card-folder-badge {
-  background: rgba(56, 189, 248, 0.15);
-  color: #38BDF8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: var(--card-folder-bg);
+  color: var(--card-folder-color);
+  border: 1px solid var(--card-folder-border);
   font-size: 10.5px;
   font-weight: 600;
   padding: 2px 7px;
@@ -372,7 +480,7 @@ button {
   gap: 8px;
   margin-top: 2px;
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .card-stats {
@@ -455,7 +563,7 @@ button {
 
 .modal-header {
   padding: 12px 16px;
-  background: #182234;
+  background: var(--modal-header-bg);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
@@ -464,7 +572,7 @@ button {
 .modal-title {
   font-size: 14px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--text-title);
 }
 
 .modal-body {
@@ -477,7 +585,7 @@ button {
 
 .modal-footer {
   padding: 10px 16px;
-  background: #182234;
+  background: var(--modal-header-bg);
   border-top: 1px solid var(--border-color);
   display: flex;
   align-items: center;
@@ -561,3 +669,66 @@ button {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* Theme Selector UI in Settings Modal */
+.theme-options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.theme-option-card {
+  position: relative;
+  border: 2px solid var(--border-color);
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  padding: 12px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.theme-option-card input[type="radio"] {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  margin: 0;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.theme-option-card:hover {
+  border-color: var(--accent-light);
+  transform: translateY(-1px);
+}
+
+.theme-option-card.active,
+.theme-option-card:has(input[type="radio"]:checked) {
+  border-color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.theme-card-icon {
+  font-size: 24px;
+  margin-bottom: 6px;
+  line-height: 1;
+}
+
+.theme-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin-bottom: 3px;
+}
+
+.theme-card-desc {
+  font-size: 10.5px;
+  color: var(--text-subtle);
+  line-height: 1.3;
+}
+

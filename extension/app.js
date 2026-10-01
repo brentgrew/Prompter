@@ -20,6 +20,7 @@
   const btnOpenSidepanel = document.getElementById('btn-open-sidepanel');
   const btnManageFolders = document.getElementById('btn-manage-folders');
   const btnVault = document.getElementById('btn-vault');
+  const btnSettings = document.getElementById('btn-settings');
   const btnNewPrompt = document.getElementById('btn-new-prompt');
 
   // Modals
@@ -48,12 +49,65 @@
   const unlockPasswordInput = document.getElementById('unlock-password');
   const btnSubmitUnlock = document.getElementById('btn-submit-unlock');
 
+  const modalSettings = document.getElementById('modal-settings');
+
   const appToast = document.getElementById('app-toast');
   const toastIcon = document.getElementById('toast-icon');
   const toastText = document.getElementById('toast-text');
 
+  // Theme Management
+  const DEFAULT_THEME = 'system';
+  let currentTheme = DEFAULT_THEME;
+
+  async function initTheme() {
+    try {
+      const data = await chrome.storage.local.get('prompter_theme');
+      currentTheme = data.prompter_theme || DEFAULT_THEME;
+    } catch (e) {
+      currentTheme = DEFAULT_THEME;
+    }
+    applyTheme(currentTheme);
+    updateThemeUI(currentTheme);
+  }
+
+  function applyTheme(theme) {
+    if (theme === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else if (theme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'system');
+    }
+  }
+
+  function updateThemeUI(theme) {
+    const radio = document.querySelector(`input[name="prompter-theme"][value="${theme}"]`);
+    if (radio) {
+      radio.checked = true;
+    }
+    // Update active highlight class on theme cards
+    document.querySelectorAll('.theme-option-card').forEach(card => {
+      const cardRadio = card.querySelector('input[type="radio"]');
+      if (cardRadio && cardRadio.value === theme) {
+        card.classList.add('active');
+      } else {
+        card.classList.remove('active');
+      }
+    });
+  }
+
+  async function setTheme(theme) {
+    currentTheme = theme;
+    applyTheme(theme);
+    updateThemeUI(theme);
+    await chrome.storage.local.set({ prompter_theme: theme });
+    const label = theme === 'system' ? 'Same as Chrome (Auto)' : (theme === 'dark' ? 'Dark' : 'Light');
+    showToast(`Color theme set to ${label}`, '🎨');
+  }
+
   // Initialization
   async function init() {
+    await initTheme();
     vault = await PrompterStorage.loadVault();
     bindEvents();
     renderFolderTabs();
@@ -75,6 +129,31 @@
     btnNewPrompt.addEventListener('click', () => openPromptModal());
     btnManageFolders.addEventListener('click', () => openFolderModal());
     btnVault.addEventListener('click', () => openVaultModal());
+    if (btnSettings) {
+      btnSettings.addEventListener('click', () => {
+        updateThemeUI(currentTheme);
+        openModal('modal-settings');
+      });
+    }
+
+    // Theme selector listeners
+    document.querySelectorAll('input[name="prompter-theme"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          setTheme(e.target.value);
+        }
+      });
+    });
+
+    // Cross-view theme sync (Side Panel <-> Popup)
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.prompter_theme) {
+        const newTheme = changes.prompter_theme.newValue || DEFAULT_THEME;
+        currentTheme = newTheme;
+        applyTheme(newTheme);
+        updateThemeUI(newTheme);
+      }
+    });
 
     // Modal Close Buttons
     document.querySelectorAll('.modal-close').forEach(btn => {
@@ -311,26 +390,22 @@
         <div class="card-bottom">
           <span class="card-stats">${wordCount} words · ${charCount} chars</span>
           <div class="card-actions">
-            <button class="btn-insert" title="Paste prompt directly into active webpage (ChatGPT, Claude, etc.)">
-              <span>⚡</span> <span>Insert</span>
-            </button>
-            <button class="btn-copy" title="Copy to clipboard">
-              <span>📋</span> <span>Copy</span>
-            </button>
-            <button class="btn-icon btn-edit" title="Edit prompt" style="padding: 4px 6px;">✏️</button>
-            <button class="btn-icon btn-delete" title="Delete prompt" style="padding: 4px 6px;">🗑️</button>
+            <button class="btn-action btn-action-insert" title="Insert prompt directly into active webpage (ChatGPT, Claude, etc.)">⚡</button>
+            <button class="btn-action btn-action-copy" title="Copy to clipboard">📋</button>
+            <button class="btn-action btn-action-edit" title="Edit prompt">✏️</button>
+            <button class="btn-action btn-action-delete" title="Delete prompt">🗑️</button>
           </div>
         </div>
       `;
 
       // Event: Insert into active tab
-      card.querySelector('.btn-insert').addEventListener('click', (e) => {
+      card.querySelector('.btn-action-insert').addEventListener('click', (e) => {
         e.stopPropagation();
         insertPromptIntoActiveTab(prompt.Content);
       });
 
       // Event: Copy to clipboard
-      card.querySelector('.btn-copy').addEventListener('click', (e) => {
+      card.querySelector('.btn-action-copy').addEventListener('click', (e) => {
         e.stopPropagation();
         copyToClipboard(prompt.Content);
       });
@@ -342,13 +417,13 @@
       });
 
       // Event: Edit prompt
-      card.querySelector('.btn-edit').addEventListener('click', (e) => {
+      card.querySelector('.btn-action-edit').addEventListener('click', (e) => {
         e.stopPropagation();
         openPromptModal(prompt, folder.Id);
       });
 
       // Event: Delete prompt
-      card.querySelector('.btn-delete').addEventListener('click', (e) => {
+      card.querySelector('.btn-action-delete').addEventListener('click', (e) => {
         e.stopPropagation();
         handleDeletePrompt(prompt.Id, folder.Id);
       });

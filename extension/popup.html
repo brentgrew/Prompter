@@ -24,6 +24,9 @@
       <button id="btn-vault" class="btn-icon" title="Import / Export Vault">
         <span>💾</span>
       </button>
+      <button id="btn-settings" class="btn-icon" title="Settings & Appearance">
+        <span>⚙️</span>
+      </button>
       <button id="btn-new-prompt" class="btn-primary" title="Create New Prompt">
         <span>➕</span>
         <span>Prompt</span>
@@ -137,7 +140,7 @@
         </p>
 
         <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-          <div style="font-weight: 700; color: #FFFFFF; font-size: 12.5px;">Export Vault</div>
+          <div style="font-weight: 700; color: var(--text-title); font-size: 12.5px;">Export Vault</div>
           <div style="font-size: 11.5px; color: var(--text-subtle);">Download your entire collection of folders and prompts to a JSON backup file.</div>
           <button id="btn-export-vault" class="btn-secondary" style="align-self: flex-start;">
             <span>📥</span>
@@ -146,7 +149,7 @@
         </div>
 
         <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-          <div style="font-weight: 700; color: #FFFFFF; font-size: 12.5px;">Import Vault</div>
+          <div style="font-weight: 700; color: var(--text-title); font-size: 12.5px;">Import Vault</div>
           <div style="font-size: 11.5px; color: var(--text-subtle);">Select a <code style="color: var(--accent-light);">prompter_vault.json</code> file from your computer or Prompter desktop app.</div>
           
           <div style="display: flex; gap: 14px; font-size: 12px; margin: 4px 0;">
@@ -193,6 +196,47 @@
       <div class="modal-footer">
         <button class="btn-secondary modal-close" data-modal="modal-unlock">Cancel</button>
         <button id="btn-submit-unlock" class="btn-primary">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Settings Modal -->
+  <div id="modal-settings" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ Settings</h3>
+        <button class="btn-icon modal-close" data-modal="modal-settings">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Color Theme</label>
+          <p style="color: var(--text-muted); font-size: 11.5px; margin-bottom: 6px;">
+            Choose your color theme or let Prompter adapt to Chrome automatically.
+          </p>
+          <div class="theme-options-grid">
+            <label class="theme-option-card" title="Matches Chrome and OS light/dark mode automatically">
+              <input type="radio" name="prompter-theme" value="system" checked />
+              <span class="theme-card-icon">🌓</span>
+              <span class="theme-card-title">Chrome Default</span>
+              <span class="theme-card-desc">Auto (matches browser & OS)</span>
+            </label>
+            <label class="theme-option-card" title="Always use dark theme">
+              <input type="radio" name="prompter-theme" value="dark" />
+              <span class="theme-card-icon">🌙</span>
+              <span class="theme-card-title">Dark</span>
+              <span class="theme-card-desc">Sleek slate dark appearance</span>
+            </label>
+            <label class="theme-option-card" title="Always use light theme">
+              <input type="radio" name="prompter-theme" value="light" />
+              <span class="theme-card-icon">☀️</span>
+              <span class="theme-card-title">Light</span>
+              <span class="theme-card-desc">Clean bright light appearance</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary modal-close" data-modal="modal-settings">Done</button>
       </div>
     </div>
   </div>
