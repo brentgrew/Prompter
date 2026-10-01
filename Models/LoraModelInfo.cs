@@ -71,29 +71,47 @@ namespace Prompter.Models
             }
         }
 
+        public bool IsWan =>
+            Architecture.Equals("WAN", StringComparison.OrdinalIgnoreCase) ||
+            Architecture.Contains("wan", StringComparison.OrdinalIgnoreCase) ||
+            Folder.StartsWith("WAN", StringComparison.OrdinalIgnoreCase) ||
+            RelativePath.StartsWith("WAN", StringComparison.OrdinalIgnoreCase) ||
+            RelativePath.Contains("/WAN/", StringComparison.OrdinalIgnoreCase);
+
         public bool IsFlux =>
-            Architecture.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
-            Name.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
-            Title.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
-            RelativePath.Contains("flux", StringComparison.OrdinalIgnoreCase);
+            !IsWan && (
+                Architecture.Equals("Flux", StringComparison.OrdinalIgnoreCase) ||
+                Architecture.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
+                Title.Contains("flux", StringComparison.OrdinalIgnoreCase) ||
+                RelativePath.Contains("flux", StringComparison.OrdinalIgnoreCase));
 
         public bool IsSdxl =>
-            !IsFlux && (
-                Architecture.Contains("xl", StringComparison.OrdinalIgnoreCase) ||
+            !IsWan && !IsFlux && (
+                Architecture.Equals("SDXL", StringComparison.OrdinalIgnoreCase) ||
                 Architecture.Contains("sdxl", StringComparison.OrdinalIgnoreCase) ||
+                Architecture.Contains("stable-diffusion-xl", StringComparison.OrdinalIgnoreCase) ||
                 Architecture.Contains("pony", StringComparison.OrdinalIgnoreCase) ||
-                Name.Contains("xl", StringComparison.OrdinalIgnoreCase) ||
                 Name.Contains("sdxl", StringComparison.OrdinalIgnoreCase) ||
                 Name.Contains("pony", StringComparison.OrdinalIgnoreCase) ||
-                Title.Contains("xl", StringComparison.OrdinalIgnoreCase) ||
-                Title.Contains("pony", StringComparison.OrdinalIgnoreCase));
+                RelativePath.Contains("sdxl", StringComparison.OrdinalIgnoreCase) ||
+                RelativePath.Contains("pony", StringComparison.OrdinalIgnoreCase) ||
+                Title.Contains("sdxl", StringComparison.OrdinalIgnoreCase) ||
+                Title.Contains("pony", StringComparison.OrdinalIgnoreCase) ||
+                System.Text.RegularExpressions.Regex.IsMatch(Name, @"\bxl\b|xl_|_xl", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
 
         public bool IsSd15 =>
-            !IsFlux && !IsSdxl && (
+            !IsWan && !IsFlux && !IsSdxl && (
+                Architecture.Equals("SD 1.5", StringComparison.OrdinalIgnoreCase) ||
+                Architecture.Contains("sd_1.5", StringComparison.OrdinalIgnoreCase) ||
+                Architecture.Contains("sd_v1", StringComparison.OrdinalIgnoreCase) ||
+                Architecture.Contains("stable-diffusion-v1", StringComparison.OrdinalIgnoreCase) ||
                 Architecture.Contains("1.5", StringComparison.OrdinalIgnoreCase) ||
-                Architecture.Contains("v1", StringComparison.OrdinalIgnoreCase) ||
-                Name.Contains("1.5", StringComparison.OrdinalIgnoreCase) ||
-                Name.Contains("v1-5", StringComparison.OrdinalIgnoreCase));
+                Name.Contains("sd15", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("sd1.5", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("v1-5", StringComparison.OrdinalIgnoreCase) ||
+                RelativePath.Contains("sd15", StringComparison.OrdinalIgnoreCase) ||
+                RelativePath.Contains("sd1.5", StringComparison.OrdinalIgnoreCase));
 
         public bool IsNsfw =>
             Folder.StartsWith("NSFW", StringComparison.OrdinalIgnoreCase) ||
@@ -105,20 +123,22 @@ namespace Prompter.Models
         {
             get
             {
+                if (IsWan) return "WAN";
                 if (IsFlux) return "Flux";
                 if (IsSdxl) return "SDXL";
                 if (IsSd15) return "SD 1.5";
                 if (!string.IsNullOrEmpty(Architecture)) return Architecture;
-                return "LoRA";
+                return "SDXL";
             }
         }
 
         public bool IsCompatibleWith(LocalModelInfo? model)
         {
             if (model == null || !model.IsImageModel) return true;
+            if (IsWan) return false;
             if (model.IsFlux) return IsFlux;
-            if (model.IsSdxl) return IsSdxl || (!IsFlux && !IsSd15);
-            if (model.IsSd15) return IsSd15 || (!IsFlux && !IsSdxl);
+            if (model.IsSdxl) return IsSdxl;
+            if (model.IsSd15) return IsSd15;
             return true;
         }
 
@@ -129,6 +149,9 @@ namespace Prompter.Models
 
             var loraArch = ArchitectureBadge;
             var modelArch = model.FamilyName;
+            if (IsWan)
+                return $"⚠️ Architecture Mismatch: WAN video LoRA cannot be applied to {modelArch} image generation.";
+
             return $"⚠️ Architecture Mismatch: {loraArch} LoRA cannot be applied to {modelArch} model in SwarmUI/ComfyUI.";
         }
 

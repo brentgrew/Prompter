@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Prompter.Models;
@@ -300,6 +301,123 @@ namespace Prompter.Services
                    name.Contains("v1.5", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Normalizes SwarmUI API architecture or falls back to fast safetensors header inspection.
+        /// </summary>
+        public static string NormalizeOrDetectArchitecture(string? apiArch, string filePath)
+        {
+            if (!string.IsNullOrWhiteSpace(apiArch))
+            {
+                var lower = apiArch.ToLowerInvariant();
+                if (lower.Contains("sdxl") || lower.Contains("stable-diffusion-xl") || lower.Contains("pony") || Regex.IsMatch(lower, @"\bxl\b"))
+                    return "SDXL";
+                if (lower.Contains("flux"))
+                    return "Flux";
+                if (lower.Contains("wan"))
+                    return "WAN";
+                if (lower.Contains("stable-diffusion-v1") || lower.Contains("1.5") || lower.Contains("sd_1.5"))
+                    return "SD 1.5";
+            }
+
+            return DetectSafetensorsArchitecture(filePath);
+        }
+
+        /// <summary>
+        /// Reads safetensors file metadata headers to accurately identify SDXL vs SD 1.5 vs Flux vs WAN LoRA architecture.
+        /// </summary>
+        public static string DetectSafetensorsArchitecture(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            {
+                var fallback = filePath ?? "";
+                if (fallback.Contains("wan", StringComparison.OrdinalIgnoreCase)) return "WAN";
+                if (fallback.Contains("flux", StringComparison.OrdinalIgnoreCase)) return "Flux";
+                if (fallback.Contains("1.5", StringComparison.OrdinalIgnoreCase) || fallback.Contains("sd15", StringComparison.OrdinalIgnoreCase)) return "SD 1.5";
+                return "SDXL";
+            }
+
+            try
+            {
+                if (filePath.EndsWith(".safetensors", StringComparison.OrdinalIgnoreCase))
+                {
+                    using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var reader = new BinaryReader(stream);
+                    if (stream.Length >= 8)
+                    {
+                        var headerSize = reader.ReadInt64();
+                        if (headerSize > 0 && headerSize < 10_000_000)
+                        {
+                            var readLen = (int)Math.Min(65536, headerSize);
+                            var bytes = reader.ReadBytes(readLen);
+                            var txt = Encoding.UTF8.GetString(bytes);
+
+                            // 1. Explicit metadata checks
+                            var metaMatch = Regex.Match(txt, "\"(?:ss_base_model_version|modelspec\\.architecture|architecture)\":\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+                            if (metaMatch.Success)
+                            {
+                                var ver = metaMatch.Groups[1].Value.ToLowerInvariant();
+                                if (ver.Contains("sdxl") || ver.Contains("pony") || ver.Contains("stable-diffusion-xl") || ver.Contains("xl"))
+                                    return "SDXL";
+                                if (ver.Contains("flux"))
+                                    return "Flux";
+                                if (ver.Contains("wan"))
+                                    return "WAN";
+                                if (ver.Contains("sd_1.5") || ver.Contains("sd_v1") || ver.Contains("v1-5") || ver.Contains("stable-diffusion-v1") || ver.Contains("sd1.5"))
+                                    return "SD 1.5";
+                            }
+
+                            // 2. Resolution check
+                            var resMatch = Regex.Match(txt, "\"modelspec\\.resolution\":\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+                            if (resMatch.Success)
+                            {
+                                var res = resMatch.Groups[1].Value.ToLowerInvariant();
+                                if (res.Contains("1024x1024")) return "SDXL";
+                                if (res.Contains("512x512")) return "SD 1.5";
+                            }
+
+                            // 3. Tensor key checks
+                            if (txt.Contains("lora_unet_output_blocks_5_1_transformer_blocks_1_ff_net_2") ||
+                                txt.Contains("lora_te2_text_model") ||
+                                txt.Contains("lora_unet_down_blocks_2_attentions_1_transformer_blocks_9"))
+                            {
+                                return "SDXL";
+                            }
+                            if (txt.Contains("lora_unet_up_blocks_3_attentions_2_transformer_blocks_0_ff_net_2"))
+                            {
+                                return "SD 1.5";
+                            }
+                            if (txt.Contains("double_blocks.") || txt.Contains("single_transformer_blocks."))
+                            {
+                                return "Flux";
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fall through to path heuristics
+            }
+
+            // Path and file name heuristics
+            var lower = filePath.ToLowerInvariant();
+            if (lower.Contains("wan")) return "WAN";
+            if (lower.Contains("flux")) return "Flux";
+            if (lower.Contains("sdxl") || lower.Contains("pony") || Regex.IsMatch(lower, @"\bxl\b|xl_|_xl")) return "SDXL";
+            if (lower.Contains("sd15") || lower.Contains("sd1.5") || lower.Contains("v1-5") || lower.Contains("v1.5")) return "SD 1.5";
+
+            // If file size is substantial (SDXL LoRAs are typically 50MB-800MB)
+            try
+            {
+                var fi = new FileInfo(filePath);
+                if (fi.Exists && fi.Length > 60_000_000)
+                    return "SDXL";
+            }
+            catch { }
+
+            return "SDXL";
+        }
+
         public async Task<List<LoraModelInfo>> ListLorasAsync()
         {
             var loras = new Dictionary<string, LoraModelInfo>(StringComparer.OrdinalIgnoreCase);
@@ -341,6 +459,10 @@ namespace Prompter.Services
                                 if (string.IsNullOrEmpty(arch) && item.TryGetProperty("class", out var c))
                                 {
                                     arch = c.GetString() ?? "";
+                                }
+                                if (string.IsNullOrEmpty(arch) && item.TryGetProperty("compat_class", out var cc))
+                                {
+                                    arch = cc.GetString() ?? "";
                                 }
                                 var preview = item.TryGetProperty("preview_image", out var p) ? p.GetString() : null;
                                 var trigger = item.TryGetProperty("trigger_phrase", out var tp) ? tp.GetString() : null;
@@ -384,7 +506,7 @@ namespace Prompter.Services
                                     RelativePath = cleanRel,
                                     Folder = folder,
                                     Category = topCategory,
-                                    Architecture = arch,
+                                    Architecture = NormalizeOrDetectArchitecture(arch, localPath),
                                     PreviewImageUrl = preview,
                                     TriggerPhrase = trigger,
                                     Tags = tags,
@@ -448,7 +570,7 @@ namespace Prompter.Services
                                 RelativePath = relativeName,
                                 Folder = folder,
                                 Category = topCategory,
-                                Architecture = file.Contains("xl", StringComparison.OrdinalIgnoreCase) ? "SDXL" : "SD 1.5",
+                                Architecture = DetectSafetensorsArchitecture(file),
                                 SizeBytes = fi.Exists ? fi.Length : 0,
                                 Strength = 1.0
                             };

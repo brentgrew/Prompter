@@ -1362,6 +1362,106 @@ namespace Prompter.Tests
             Assert.IsFalse(vm.HasIncompatibleActiveLoras);
             Assert.AreEqual(string.Empty, vm.IncompatibleLorasWarningText);
         }
+
+        [TestMethod]
+        public void TestSdxlAndSd15LorasArchitectureAndCompatibility()
+        {
+            var sdxlModel = new LocalModelInfo
+            {
+                ModelId = "SDXL 1.0.safetensors",
+                Name = "SDXL 1.0.safetensors",
+                IsImageModel = true,
+                Family = "SDXL"
+            };
+
+            var sd15Model = new LocalModelInfo
+            {
+                ModelId = "dreamshaper_8.safetensors",
+                Name = "dreamshaper_8.safetensors",
+                IsImageModel = true,
+                Family = "SD 1.5"
+            };
+
+            // SDXL LoRA (e.g. Axolotl without 'xl' in filename)
+            var sdxlLora = new LoraModelInfo
+            {
+                Id = "SD/Animals/Axolotl.safetensors",
+                Name = "Axolotl.safetensors",
+                Title = "Axolotl",
+                Architecture = "SDXL"
+            };
+
+            // SD 1.5 LoRA
+            var sd15Lora = new LoraModelInfo
+            {
+                Id = "C/claireface50lora.safetensors",
+                Name = "claireface50lora.safetensors",
+                Title = "Claire Face",
+                Architecture = "SD 1.5"
+            };
+
+            // WAN video LoRA
+            var wanLora = new LoraModelInfo
+            {
+                Id = "WAN/360 Camera Orbit.safetensors",
+                Name = "360 Camera Orbit.safetensors",
+                Architecture = "WAN"
+            };
+
+            // Badges
+            Assert.AreEqual("SDXL", sdxlLora.ArchitectureBadge);
+            Assert.AreEqual("SD 1.5", sd15Lora.ArchitectureBadge);
+            Assert.AreEqual("WAN", wanLora.ArchitectureBadge);
+
+            // SDXL model compatibility
+            Assert.IsTrue(sdxlLora.IsCompatibleWith(sdxlModel));
+            Assert.AreEqual(string.Empty, sdxlLora.IncompatibleWarning(sdxlModel));
+
+            Assert.IsFalse(sd15Lora.IsCompatibleWith(sdxlModel));
+            var warn15onXL = sd15Lora.IncompatibleWarning(sdxlModel);
+            Assert.IsTrue(warn15onXL.Contains("SD 1.5"));
+            Assert.IsTrue(warn15onXL.Contains("SDXL"));
+
+            Assert.IsFalse(wanLora.IsCompatibleWith(sdxlModel));
+            Assert.IsTrue(wanLora.IncompatibleWarning(sdxlModel).Contains("WAN"));
+
+            // SD 1.5 model compatibility
+            Assert.IsTrue(sd15Lora.IsCompatibleWith(sd15Model));
+            Assert.AreEqual(string.Empty, sd15Lora.IncompatibleWarning(sd15Model));
+
+            Assert.IsFalse(sdxlLora.IsCompatibleWith(sd15Model));
+            var warnXLon15 = sdxlLora.IncompatibleWarning(sd15Model);
+            Assert.IsTrue(warnXLon15.Contains("SDXL"));
+            Assert.IsTrue(warnXLon15.Contains("SD 1.5"));
+
+            Assert.IsFalse(wanLora.IsCompatibleWith(sd15Model));
+            Assert.IsTrue(wanLora.IncompatibleWarning(sd15Model).Contains("WAN"));
+        }
+
+        [TestMethod]
+        public void TestDetectSafetensorsArchitectureHeaders()
+        {
+            var axolotlFile = @"X:\SwarmUI\Models\Lora\SD\Animals\Axolotl.safetensors";
+            if (File.Exists(axolotlFile))
+            {
+                var arch = SwarmUiService.DetectSafetensorsArchitecture(axolotlFile);
+                Assert.AreEqual("SDXL", arch);
+            }
+
+            var claireFile = @"X:\SwarmUI\Models\Lora\C\claireface50lora.safetensors";
+            if (File.Exists(claireFile))
+            {
+                var arch = SwarmUiService.DetectSafetensorsArchitecture(claireFile);
+                Assert.AreEqual("SD 1.5", arch);
+            }
+
+            var wanFile = @"X:\SwarmUI\Models\Lora\WAN\360 Camera Orbit.safetensors";
+            if (File.Exists(wanFile))
+            {
+                var arch = SwarmUiService.DetectSafetensorsArchitecture(wanFile);
+                Assert.AreEqual("WAN", arch);
+            }
+        }
     }
 
     [TestClass]
