@@ -96,11 +96,11 @@
   <div id="modal-folders" class="modal-overlay">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 class="modal-title">Manage Folders</h3>
+        <h3 class="modal-title">📁 Manage Folders</h3>
         <button class="btn-icon modal-close" data-modal="modal-folders">✕</button>
       </div>
       <div class="modal-body">
-        <div class="form-group">
+        <div class="form-group" style="flex-shrink: 0;">
           <label class="form-label" for="new-folder-name">Create New Folder</label>
           <div style="display: flex; gap: 8px;">
             <input id="new-folder-name" class="form-input" type="text" placeholder="Folder name..." style="flex: 1;" />
@@ -108,9 +108,12 @@
           </div>
         </div>
 
-        <div class="form-group" style="margin-top: 10px;">
-          <label class="form-label">Existing Folders</label>
-          <div id="folders-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+        <div class="form-group form-group-existing">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <label class="form-label" style="margin-bottom: 0;">Existing Folders</label>
+            <span style="font-size: 11px; color: var(--text-subtle);">Drag ⠿ or click ▲▼ to reorder</span>
+          </div>
+          <div id="folders-list">
             <!-- Rendered dynamically -->
           </div>
         </div>

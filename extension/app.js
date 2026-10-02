@@ -155,6 +155,15 @@
         applyTheme(newTheme);
         updateThemeUI(newTheme);
       }
+      if (area === 'local' && changes.prompter_vault && changes.prompter_vault.newValue) {
+        vault = changes.prompter_vault.newValue;
+        renderFolderTabs();
+        renderPromptsList();
+        const foldersModal = document.getElementById('modal-folders');
+        if (foldersModal && foldersModal.classList.contains('active')) {
+          renderFolderManagerList();
+        }
+      }
     });
 
     // Modal Close Buttons
@@ -270,6 +279,8 @@
     if (el) el.classList.remove('active');
   }
 
+  let draggedTabFolderIndex = null;
+
   // Folder Tabs Rendering
   function renderFolderTabs() {
     folderTabs.innerHTML = '';
@@ -292,12 +303,15 @@
     folderTabs.appendChild(allTab);
 
     // Individual Folder Tabs
-    vault.Folders.forEach(folder => {
+    vault.Folders.forEach((folder, index) => {
       const isLocked = folder.IsPasswordProtected && !unlockedFolders.has(folder.Id);
       const count = isLocked ? '🔒' : (folder.Prompts ? folder.Prompts.length : (folder.PromptCount || 0));
 
       const tab = document.createElement('div');
       tab.className = `folder-tab ${activeFolderId === folder.Id ? 'active' : ''}`;
+      tab.setAttribute('draggable', 'true');
+      tab.setAttribute('data-index', index.toString());
+      tab.setAttribute('title', `${folder.Name} (drag tab to reorder)`);
       tab.innerHTML = `
         <span>${escapeHtml(folder.Name)}</span>
         <span class="tab-badge">${count}</span>
@@ -311,6 +325,36 @@
         activeFolderId = folder.Id;
         renderFolderTabs();
         renderPromptsList();
+      });
+
+      // Drag and drop for tabs
+      tab.addEventListener('dragstart', (e) => {
+        draggedTabFolderIndex = index;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index.toString());
+        setTimeout(() => tab.classList.add('tab-dragging'), 0);
+      });
+      tab.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (draggedTabFolderIndex !== null && draggedTabFolderIndex !== index) {
+          tab.classList.add('tab-drag-over');
+        }
+      });
+      tab.addEventListener('dragleave', () => {
+        tab.classList.remove('tab-drag-over');
+      });
+      tab.addEventListener('drop', (e) => {
+        e.preventDefault();
+        tab.classList.remove('tab-drag-over');
+        if (draggedTabFolderIndex !== null && draggedTabFolderIndex !== index) {
+          reorderFolder(draggedTabFolderIndex, index);
+        }
+      });
+      tab.addEventListener('dragend', () => {
+        tab.classList.remove('tab-dragging');
+        document.querySelectorAll('.folder-tab').forEach(t => t.classList.remove('tab-drag-over', 'tab-dragging'));
+        draggedTabFolderIndex = null;
       });
 
       folderTabs.appendChild(tab);
@@ -608,29 +652,139 @@
     newFolderNameInput.focus();
   }
 
+  // Folder Reordering Logic
+  async function reorderFolder(fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 ||
+        fromIndex >= vault.Folders.length || toIndex >= vault.Folders.length) {
+      return;
+    }
+    const [movedFolder] = vault.Folders.splice(fromIndex, 1);
+    vault.Folders.splice(toIndex, 0, movedFolder);
+
+    await PrompterStorage.saveVault(vault);
+    renderFolderManagerList();
+    renderFolderTabs();
+    showToast(`Reordered "${movedFolder.Name}"`, '↕️');
+  }
+
+  let draggedFolderIndex = null;
+
   function renderFolderManagerList() {
     foldersList.innerHTML = '';
-    vault.Folders.forEach(folder => {
+    vault.Folders.forEach((folder, index) => {
       const count = folder.Prompts ? folder.Prompts.length : (folder.PromptCount || 0);
+      const isFirst = index === 0;
+      const isLast = index === vault.Folders.length - 1;
 
       const row = document.createElement('div');
-      row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; background: var(--bg-primary); padding: 8px 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color);';
+      row.className = 'folder-manage-item';
+      row.setAttribute('draggable', 'true');
+      row.setAttribute('data-id', folder.Id);
+      row.setAttribute('data-index', index.toString());
 
       row.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-          <span style="font-weight: 600; color: #FFFFFF; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${escapeHtml(folder.Name)} ${folder.IsPasswordProtected ? '🔒' : ''}
-          </span>
-          <span class="tab-badge">${count} prompts</span>
+        <div class="folder-manage-left">
+          <div class="folder-drag-handle" title="Drag up or down to reorder folder">
+            <span>⋮⋮</span>
+          </div>
+          <div class="folder-order-arrows">
+            <button type="button" class="btn-icon btn-folder-arrow btn-move-up" title="Move folder up" ${isFirst ? 'disabled' : ''}>▲</button>
+            <button type="button" class="btn-icon btn-folder-arrow btn-move-down" title="Move folder down" ${isLast ? 'disabled' : ''}>▼</button>
+          </div>
+          <div class="folder-info">
+            <span class="folder-name-text" title="${escapeHtml(folder.Name)}">
+              ${escapeHtml(folder.Name)} ${folder.IsPasswordProtected ? '🔒' : ''}
+            </span>
+            <span class="tab-badge">${count} prompts</span>
+          </div>
         </div>
-        <div style="display: flex; gap: 4px; flex-shrink: 0;">
-          <button class="btn-icon btn-rename-folder" title="Rename Folder" style="padding: 3px 6px;">✏️</button>
-          <button class="btn-icon btn-delete-folder" title="Delete Folder" style="padding: 3px 6px;">🗑️</button>
+        <div class="folder-manage-actions">
+          <button type="button" class="btn-icon btn-rename-folder" title="Rename Folder">✏️</button>
+          <button type="button" class="btn-icon btn-delete-folder" title="Delete Folder">🗑️</button>
         </div>
       `;
 
-      row.querySelector('.btn-rename-folder').addEventListener('click', () => handleRenameFolder(folder.Id));
-      row.querySelector('.btn-delete-folder').addEventListener('click', () => handleDeleteFolder(folder.Id));
+      // Up / Down arrow click handlers
+      const btnUp = row.querySelector('.btn-move-up');
+      const btnDown = row.querySelector('.btn-move-down');
+      if (btnUp) {
+        btnUp.addEventListener('click', (e) => {
+          e.stopPropagation();
+          reorderFolder(index, index - 1);
+        });
+      }
+      if (btnDown) {
+        btnDown.addEventListener('click', (e) => {
+          e.stopPropagation();
+          reorderFolder(index, index + 1);
+        });
+      }
+
+      // Rename & Delete click handlers
+      row.querySelector('.btn-rename-folder').addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleRenameFolder(folder.Id);
+      });
+      row.querySelector('.btn-delete-folder').addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleDeleteFolder(folder.Id);
+      });
+
+      // Drag and drop events for modal folder row
+      row.addEventListener('dragstart', (e) => {
+        if (e.target.closest('button')) {
+          e.preventDefault();
+          return;
+        }
+        draggedFolderIndex = index;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index.toString());
+        setTimeout(() => row.classList.add('is-dragging'), 0);
+      });
+
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (draggedFolderIndex === null || draggedFolderIndex === index) return;
+
+        const rect = row.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+          row.classList.add('drag-over-top');
+          row.classList.remove('drag-over-bottom');
+        } else {
+          row.classList.add('drag-over-bottom');
+          row.classList.remove('drag-over-top');
+        }
+      });
+
+      row.addEventListener('dragleave', () => {
+        row.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        row.classList.remove('drag-over-top', 'drag-over-bottom');
+        if (draggedFolderIndex === null || draggedFolderIndex === index) return;
+
+        const rect = row.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const isBelow = e.clientY >= midY;
+        let targetIndex = isBelow ? index + 1 : index;
+        if (draggedFolderIndex < targetIndex) {
+          targetIndex--;
+        }
+        if (draggedFolderIndex !== targetIndex) {
+          reorderFolder(draggedFolderIndex, targetIndex);
+        }
+      });
+
+      row.addEventListener('dragend', () => {
+        document.querySelectorAll('.folder-manage-item').forEach(el => {
+          el.classList.remove('drag-over-top', 'drag-over-bottom', 'is-dragging');
+        });
+        draggedFolderIndex = null;
+      });
 
       foldersList.appendChild(row);
     });
