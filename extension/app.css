@@ -708,39 +708,6 @@ body.popup-view #modal-folders .modal-dialog {
   cursor: grabbing;
 }
 
-.folder-order-arrows {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  flex-shrink: 0;
-}
-.btn-folder-arrow {
-  font-size: 8px !important;
-  line-height: 1 !important;
-  padding: 1px 3px !important;
-  height: 14px !important;
-  min-width: 19px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border-radius: 3px !important;
-  background: var(--bg-secondary) !important;
-  color: var(--text-muted) !important;
-  border: 1px solid var(--border-color) !important;
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-.btn-folder-arrow:hover:not(:disabled) {
-  background: var(--accent-primary) !important;
-  color: #FFFFFF !important;
-  border-color: var(--accent-primary) !important;
-}
-.btn-folder-arrow:disabled {
-  opacity: 0.22 !important;
-  cursor: not-allowed !important;
-  pointer-events: none !important;
-}
-
 .folder-info {
   display: flex;
   align-items: center;
@@ -751,10 +718,14 @@ body.popup-view #modal-folders .modal-dialog {
 .folder-name-text {
   font-weight: 600;
   color: var(--text-title);
-  font-size: 12.5px;
+  font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.folder-info .tab-badge {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .folder-manage-actions {

@@ -673,8 +673,6 @@
     foldersList.innerHTML = '';
     vault.Folders.forEach((folder, index) => {
       const count = folder.Prompts ? folder.Prompts.length : (folder.PromptCount || 0);
-      const isFirst = index === 0;
-      const isLast = index === vault.Folders.length - 1;
 
       const row = document.createElement('div');
       row.className = 'folder-manage-item';
@@ -684,12 +682,8 @@
 
       row.innerHTML = `
         <div class="folder-manage-left">
-          <div class="folder-drag-handle" title="Drag up or down to reorder folder">
+          <div class="folder-drag-handle" title="Drag to reorder folder">
             <span>⋮⋮</span>
-          </div>
-          <div class="folder-order-arrows">
-            <button type="button" class="btn-icon btn-folder-arrow btn-move-up" title="Move folder up" ${isFirst ? 'disabled' : ''}>▲</button>
-            <button type="button" class="btn-icon btn-folder-arrow btn-move-down" title="Move folder down" ${isLast ? 'disabled' : ''}>▼</button>
           </div>
           <div class="folder-info">
             <span class="folder-name-text" title="${escapeHtml(folder.Name)}">
@@ -703,22 +697,6 @@
           <button type="button" class="btn-icon btn-delete-folder" title="Delete Folder">🗑️</button>
         </div>
       `;
-
-      // Up / Down arrow click handlers
-      const btnUp = row.querySelector('.btn-move-up');
-      const btnDown = row.querySelector('.btn-move-down');
-      if (btnUp) {
-        btnUp.addEventListener('click', (e) => {
-          e.stopPropagation();
-          reorderFolder(index, index - 1);
-        });
-      }
-      if (btnDown) {
-        btnDown.addEventListener('click', (e) => {
-          e.stopPropagation();
-          reorderFolder(index, index + 1);
-        });
-      }
 
       // Rename & Delete click handlers
       row.querySelector('.btn-rename-folder').addEventListener('click', (e) => {
