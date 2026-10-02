@@ -390,13 +390,13 @@
         </div>
         <div class="card-snippet" title="Click to copy prompt">${escapeHtml(prompt.Content || '')}</div>
         <div class="card-bottom">
-          <span class="card-stats">${wordCount} words · ${charCount} chars</span>
           <div class="card-actions">
             <button class="btn-action btn-action-insert" title="Insert prompt directly into active webpage (ChatGPT, Claude, etc.)">⚡</button>
             <button class="btn-action btn-action-copy" title="Copy to clipboard">📋</button>
             <button class="btn-action btn-action-edit" title="Edit prompt">✏️</button>
             <button class="btn-action btn-action-delete" title="Delete prompt">🗑️</button>
           </div>
+          <span class="card-stats">${wordCount} words · ${charCount} chars</span>
         </div>
       `;
 

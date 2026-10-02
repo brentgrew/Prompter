@@ -380,10 +380,42 @@ namespace Prompter.Tests
             Assert.AreEqual("Mistral", mistral.FamilyName);
             Assert.Contains("🌪️ [Mistral]", mistral.DisplayName);
 
-            var glm = new LocalModelInfo { Name = "glm-5.3-flash:cloud" };
-            Assert.IsTrue(glm.IsGlm);
-            Assert.AreEqual("GLM", glm.FamilyName);
-            Assert.Contains("🌐 [GLM]", glm.DisplayName);
+            var glmLocal = new LocalModelInfo { Name = "glm-4:9b" };
+            Assert.IsTrue(glmLocal.IsGlm);
+            Assert.IsFalse(glmLocal.IsCloudModel);
+            Assert.AreEqual("GLM", glmLocal.FamilyName);
+            Assert.Contains("🌐 [GLM]", glmLocal.DisplayName);
+
+            var glmCloud = new LocalModelInfo { Name = "glm-5.3-flash:cloud" };
+            Assert.IsTrue(glmCloud.IsGlm);
+            Assert.IsTrue(glmCloud.IsCloudModel);
+            Assert.AreEqual("GLM", glmCloud.FamilyName);
+            Assert.Contains("☁️ [GLM]", glmCloud.DisplayName);
+            Assert.Contains("☁️ Ollama Cloud", glmCloud.DetailsBadge);
+
+            var gptoss = new LocalModelInfo { Name = "gpt-oss:20b:cloud", ParameterSize = "20.9B" };
+            Assert.IsTrue(gptoss.IsGptOss);
+            Assert.IsTrue(gptoss.IsCloudModel);
+            Assert.AreEqual("GPT-OSS", gptoss.FamilyName);
+            Assert.Contains("☁️ [GPT-OSS]", gptoss.DisplayName);
+
+            var nemotron = new LocalModelInfo { Name = "nemotron-3-nano:30b-cloud", ParameterSize = "30B" };
+            Assert.IsTrue(nemotron.IsNemotron);
+            Assert.IsTrue(nemotron.IsCloudModel);
+            Assert.AreEqual("Nemotron", nemotron.FamilyName);
+            Assert.Contains("☁️ [Nemotron]", nemotron.DisplayName);
+
+            var kimi = new LocalModelInfo { Name = "kimi-k3:cloud" };
+            Assert.IsTrue(kimi.IsKimi);
+            Assert.IsTrue(kimi.IsCloudModel);
+            Assert.AreEqual("Kimi", kimi.FamilyName);
+            Assert.Contains("☁️ [Kimi]", kimi.DisplayName);
+
+            var minimax = new LocalModelInfo { Name = "minimax-m3:cloud" };
+            Assert.IsTrue(minimax.IsMiniMax);
+            Assert.IsTrue(minimax.IsCloudModel);
+            Assert.AreEqual("MiniMax", minimax.FamilyName);
+            Assert.Contains("☁️ [MiniMax]", minimax.DisplayName);
 
             var phi = new LocalModelInfo { Name = "phi3:mini", ParameterSize = "3.8B" };
             Assert.IsTrue(phi.IsPhi);
@@ -393,6 +425,114 @@ namespace Prompter.Tests
             var custom = new LocalModelInfo { Name = "my-custom-model" };
             Assert.AreEqual("Local", custom.FamilyName);
             Assert.Contains("🤖", custom.DisplayName);
+        }
+
+        [TestMethod]
+        public void TestOllamaCloudModelDetection()
+        {
+            // Colon cloud suffix
+            var m1 = new LocalModelInfo { Name = "deepseek-v4.1-flash:cloud" };
+            Assert.IsTrue(m1.IsCloudModel);
+            Assert.Contains("☁️ [DeepSeek]", m1.DisplayName);
+
+            // Hyphen cloud suffix
+            var m2 = new LocalModelInfo { Name = "gpt-oss:20b-cloud" };
+            Assert.IsTrue(m2.IsCloudModel);
+            Assert.Contains("☁️ [GPT-OSS]", m2.DisplayName);
+
+            // RemoteHost detection
+            var m3 = new LocalModelInfo { Name = "gemma4:31b", RemoteHost = "https://ollama.com" };
+            Assert.IsTrue(m3.IsCloudModel);
+            Assert.Contains("☁️ [Gemma]", m3.DisplayName);
+
+            // Source = "Ollama Cloud"
+            var m4 = new LocalModelInfo { Name = "custom-cloud-agent", Source = "Ollama Cloud" };
+            Assert.IsTrue(m4.IsCloudModel);
+            Assert.Contains("☁️ Ollama Cloud", m4.DetailsBadge);
+
+            // Offline local model is NOT cloud
+            var localM = new LocalModelInfo { Name = "qwen2.5:3b", Source = "Ollama" };
+            Assert.IsFalse(localM.IsCloudModel);
+            Assert.Contains("⭐ [Qwen]", localM.DisplayName);
+        }
+
+        [TestMethod]
+        public void TestOllamaCloudKnownCatalogCompleteness()
+        {
+            var catalog = LocalAiService.KnownOllamaCloudModels;
+            Assert.IsNotNull(catalog);
+            Assert.AreEqual(17, catalog.Length);
+
+            var names = catalog.Select(c => c.Name).ToList();
+            Assert.IsTrue(names.Contains("gpt-oss:20b"));
+            Assert.IsTrue(names.Contains("gpt-oss:120b"));
+            Assert.IsTrue(names.Contains("nemotron-3-nano:30b"));
+            Assert.IsTrue(names.Contains("nemotron-3-super"));
+            Assert.IsTrue(names.Contains("nemotron-3-ultra"));
+            Assert.IsTrue(names.Contains("gemma4:31b"));
+            Assert.IsTrue(names.Contains("glm-5.3-flash"));
+            Assert.IsTrue(names.Contains("glm-5.3"));
+            Assert.IsTrue(names.Contains("glm-5.2"));
+            Assert.IsTrue(names.Contains("deepseek-v4-pro:0813"));
+            Assert.IsTrue(names.Contains("deepseek-v4.1-flash"));
+            Assert.IsTrue(names.Contains("mistral-large-3:675b"));
+            Assert.IsTrue(names.Contains("kimi-k3"));
+            Assert.IsTrue(names.Contains("kimi-k2.7-code"));
+            Assert.IsTrue(names.Contains("kimi-k2.6"));
+            Assert.IsTrue(names.Contains("minimax-m3"));
+            Assert.IsTrue(names.Contains("minimax-m2.7"));
+        }
+
+        [TestMethod]
+        public void TestChatModelFilterModes()
+        {
+            var vm = new MainViewModel();
+
+            var local1 = new LocalModelInfo { Name = "qwen2.5:3b", Source = "Ollama" };
+            var local2 = new LocalModelInfo { Name = "gemma4:12b", Source = "Ollama" };
+            var cloud1 = new LocalModelInfo { Name = "gpt-oss:20b:cloud", Source = "Ollama Cloud", IsCloudModel = true };
+            var cloud2 = new LocalModelInfo { Name = "nemotron-3-nano:30b:cloud", Source = "Ollama Cloud", IsCloudModel = true };
+            var cloud3 = new LocalModelInfo { Name = "kimi-k3:cloud", Source = "Ollama Cloud", IsCloudModel = true };
+
+            var chatModels = new List<LocalModelInfo> { local1, local2, cloud1, cloud2, cloud3 };
+
+            // Simulate loading into internal collection and applying filter
+            typeof(MainViewModel).GetField("_allChatModels", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .SetValue(vm, chatModels);
+            vm.ApplyChatModelFilter();
+
+            // Default: All
+            vm.ChatModelFilter = ChatModelFilterMode.All;
+            Assert.AreEqual(5, vm.AvailableChatModels.Count);
+            Assert.AreEqual(5, vm.AllChatModelsCount);
+            Assert.AreEqual(2, vm.LocalChatModelsCount);
+            Assert.AreEqual(3, vm.CloudChatModelsCount);
+            Assert.IsTrue(vm.IsFilterAll);
+            Assert.IsFalse(vm.IsFilterLocal);
+            Assert.IsFalse(vm.IsFilterCloud);
+
+            // Switch to Local
+            vm.SetChatModelFilterCommand.Execute("Local");
+            Assert.AreEqual(ChatModelFilterMode.Local, vm.ChatModelFilter);
+            Assert.AreEqual(2, vm.AvailableChatModels.Count);
+            Assert.IsTrue(vm.AvailableChatModels.All(m => !m.IsCloudModel));
+            Assert.IsTrue(vm.IsFilterLocal);
+            Assert.IsFalse(vm.IsFilterAll);
+            Assert.IsFalse(vm.IsFilterCloud);
+
+            // Switch to Cloud
+            vm.SetChatModelFilterCommand.Execute("Cloud");
+            Assert.AreEqual(ChatModelFilterMode.Cloud, vm.ChatModelFilter);
+            Assert.AreEqual(3, vm.AvailableChatModels.Count);
+            Assert.IsTrue(vm.AvailableChatModels.All(m => m.IsCloudModel));
+            Assert.IsTrue(vm.IsFilterCloud);
+            Assert.IsFalse(vm.IsFilterAll);
+            Assert.IsFalse(vm.IsFilterLocal);
+
+            // Switch back to All
+            vm.SetChatModelFilterCommand.Execute("All");
+            Assert.AreEqual(5, vm.AvailableChatModels.Count);
+            Assert.IsTrue(vm.IsFilterAll);
         }
     }
 

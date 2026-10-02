@@ -7,6 +7,7 @@ namespace Prompter.Models
     public class LocalModelInfo : INotifyPropertyChanged
     {
         private bool _isDefault;
+        private bool _isCloudModel;
 
         public bool IsDefault
         {
@@ -24,6 +25,28 @@ namespace Prompter.Models
             }
         }
 
+        public bool IsCloudModel
+        {
+            get => _isCloudModel ||
+                   string.Equals(Source, "Ollama Cloud", StringComparison.OrdinalIgnoreCase) ||
+                   Name.Contains(":cloud", StringComparison.OrdinalIgnoreCase) ||
+                   Name.Contains("-cloud", StringComparison.OrdinalIgnoreCase) ||
+                   ModelId.Contains(":cloud", StringComparison.OrdinalIgnoreCase) ||
+                   ModelId.Contains("-cloud", StringComparison.OrdinalIgnoreCase) ||
+                   !string.IsNullOrEmpty(RemoteHost);
+            set
+            {
+                if (_isCloudModel != value)
+                {
+                    _isCloudModel = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayName));
+                    OnPropertyChanged(nameof(DetailsBadge));
+                    OnPropertyChanged(nameof(FamilyPrefix));
+                }
+            }
+        }
+
         public string StarIcon => IsDefault ? "⭐ " : "";
 
         public string Name { get; set; } = string.Empty;
@@ -34,6 +57,8 @@ namespace Prompter.Models
         public string Source { get; set; } = "Ollama";
         public string? FilePath { get; set; }
         public long SizeBytes { get; set; }
+        public string? RemoteHost { get; set; }
+        public string? RemoteModel { get; set; }
 
         public bool IsImageModel { get; set; }
         public int StandardWidth { get; set; } = 1024;
@@ -97,6 +122,29 @@ namespace Prompter.Models
                 Name.Contains("glm", StringComparison.OrdinalIgnoreCase) ||
                 Family.Contains("glm", StringComparison.OrdinalIgnoreCase));
 
+        public bool IsGptOss =>
+            !IsImageModel && (
+                Name.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("gptoss", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("gptoss", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsNemotron =>
+            !IsImageModel && (
+                Name.Contains("nemotron", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("nemotron", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsKimi =>
+            !IsImageModel && (
+                Name.Contains("kimi", StringComparison.OrdinalIgnoreCase) ||
+                Name.Contains("moonshot", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("kimi", StringComparison.OrdinalIgnoreCase));
+
+        public bool IsMiniMax =>
+            !IsImageModel && (
+                Name.Contains("minimax", StringComparison.OrdinalIgnoreCase) ||
+                Family.Contains("minimax", StringComparison.OrdinalIgnoreCase));
+
         public string FamilyName
         {
             get
@@ -113,6 +161,10 @@ namespace Prompter.Models
                 if (IsLlama) return "Llama";
                 if (IsDeepSeek) return "DeepSeek";
                 if (IsMistral) return "Mistral";
+                if (IsGptOss) return "GPT-OSS";
+                if (IsNemotron) return "Nemotron";
+                if (IsKimi) return "Kimi";
+                if (IsMiniMax) return "MiniMax";
                 if (IsGlm) return "GLM";
                 if (IsPhi) return "Phi";
                 if (!string.IsNullOrEmpty(Family)) return Family;
@@ -131,6 +183,10 @@ namespace Prompter.Models
                     if (IsSd15) return "🎨 [SD 1.5] ";
                     return "🎨 [Image] ";
                 }
+                if (IsCloudModel)
+                {
+                    return $"☁️ [{FamilyName}] ";
+                }
                 if (IsGemma) return "💎 [Gemma] ";
                 if (IsQwen) return "⭐ [Qwen] ";
                 if (IsLlama) return "🦙 [Llama] ";
@@ -138,6 +194,10 @@ namespace Prompter.Models
                 if (IsMistral) return "🌪️ [Mistral] ";
                 if (IsGlm) return "🌐 [GLM] ";
                 if (IsPhi) return "🔬 [Phi] ";
+                if (IsGptOss) return "🧠 [GPT-OSS] ";
+                if (IsNemotron) return "⚡ [Nemotron] ";
+                if (IsKimi) return "🌙 [Kimi] ";
+                if (IsMiniMax) return "🔮 [MiniMax] ";
                 return "🤖 ";
             }
         }
@@ -173,13 +233,23 @@ namespace Prompter.Models
             {
                 var parts = new System.Collections.Generic.List<string>();
                 if (IsDefault) parts.Add("⭐ Default");
-                parts.Add(FamilyName);
-                if (!IsImageModel)
+                if (IsCloudModel)
                 {
+                    parts.Add("☁️ Ollama Cloud");
+                    parts.Add(FamilyName);
                     if (!string.IsNullOrEmpty(ParameterSize)) parts.Add(ParameterSize);
-                    if (!string.IsNullOrEmpty(Quantization)) parts.Add(Quantization);
+                    if (!string.IsNullOrEmpty(Source) && Source != "Ollama" && Source != "Ollama Cloud") parts.Add(Source);
                 }
-                if (!string.IsNullOrEmpty(Source)) parts.Add(Source);
+                else
+                {
+                    parts.Add(FamilyName);
+                    if (!IsImageModel)
+                    {
+                        if (!string.IsNullOrEmpty(ParameterSize)) parts.Add(ParameterSize);
+                        if (!string.IsNullOrEmpty(Quantization)) parts.Add(Quantization);
+                    }
+                    if (!string.IsNullOrEmpty(Source)) parts.Add(Source);
+                }
                 return string.Join(" • ", parts);
             }
         }

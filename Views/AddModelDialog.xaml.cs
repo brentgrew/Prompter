@@ -166,7 +166,8 @@ namespace Prompter.Views
             {
                 ModelAdded = true;
                 AddedModelName = modelName;
-                txtStatus.Text = $"✓ Successfully downloaded \"{modelName}\"!";
+                var isCloud = modelName.EndsWith(":cloud", StringComparison.OrdinalIgnoreCase) || modelName.EndsWith("-cloud", StringComparison.OrdinalIgnoreCase);
+                txtStatus.Text = isCloud ? $"✓ Successfully connected cloud model \"{modelName}\"!" : $"✓ Successfully downloaded \"{modelName}\"!";
                 DialogResult = true;
                 Close();
             }

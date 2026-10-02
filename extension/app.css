@@ -339,10 +339,11 @@ button {
   border-bottom: 1px solid var(--border-subtle);
   padding: 6px 14px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  overflow-x: auto;
-  white-space: nowrap;
+  max-height: 84px;
+  overflow-y: auto;
 }
 
 .folder-tab {
@@ -359,6 +360,8 @@ button {
   gap: 5px;
   transition: all 0.15s ease;
   user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .folder-tab:hover {
   background: var(--bg-tertiary);
@@ -460,6 +463,7 @@ button {
   font-size: 10.5px;
   color: var(--text-subtle);
   font-family: Consolas, monospace;
+  white-space: nowrap;
 }
 
 .card-actions {

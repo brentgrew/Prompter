@@ -17,6 +17,13 @@ using Prompter.Views;
 
 namespace Prompter.ViewModels
 {
+    public enum ChatModelFilterMode
+    {
+        All,
+        Local,
+        Cloud
+    }
+
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly StorageService _storageService;
@@ -32,6 +39,8 @@ namespace Prompter.ViewModels
         private ICollectionView? _filteredPrompts;
 
         // Local AI Chat & Image Generation Fields
+        private readonly List<LocalModelInfo> _allChatModels = new();
+        private ChatModelFilterMode _chatModelFilter = ChatModelFilterMode.All;
         private CancellationTokenSource? _chatCts;
         private LocalModelInfo? _selectedModel;
         private LocalModelInfo? _selectedChatModel;
@@ -102,6 +111,7 @@ namespace Prompter.ViewModels
             RemoveActiveLoraCommand = new RelayCommand<LoraModelInfo>(ExecuteRemoveActiveLora);
             ClearActiveLorasCommand = new RelayCommand(ExecuteClearActiveLoras, () => ActiveLoras.Count > 0);
             RollRandomSeedCommand = new RelayCommand(ExecuteRollRandomSeed);
+            SetChatModelFilterCommand = new RelayCommand<string>(ExecuteSetChatModelFilter);
 
             ActiveLoras.CollectionChanged += (s, e) =>
             {
@@ -545,6 +555,35 @@ namespace Prompter.ViewModels
         public bool IsFolderLocked => SelectedFolder != null && SelectedFolder.IsPasswordProtected && !SelectedFolder.IsUnlocked;
         public bool CanAccessPrompts => SelectedFolder != null && SelectedFolder.CanAccessPrompts;
 
+        public ChatModelFilterMode ChatModelFilter
+        {
+            get => _chatModelFilter;
+            set
+            {
+                if (_chatModelFilter != value)
+                {
+                    _chatModelFilter = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsFilterAll));
+                    OnPropertyChanged(nameof(IsFilterLocal));
+                    OnPropertyChanged(nameof(IsFilterCloud));
+                    ApplyChatModelFilter();
+                }
+            }
+        }
+
+        public bool IsFilterAll => ChatModelFilter == ChatModelFilterMode.All;
+        public bool IsFilterLocal => ChatModelFilter == ChatModelFilterMode.Local;
+        public bool IsFilterCloud => ChatModelFilter == ChatModelFilterMode.Cloud;
+
+        public int AllChatModelsCount => _allChatModels.Count;
+        public int LocalChatModelsCount => _allChatModels.Count(m => !m.IsCloudModel);
+        public int CloudChatModelsCount => _allChatModels.Count(m => m.IsCloudModel);
+
+        public string FilterAllText => $"All ({AllChatModelsCount})";
+        public string FilterLocalText => $"💻 Local ({LocalChatModelsCount})";
+        public string FilterCloudText => $"☁️ Cloud ({CloudChatModelsCount})";
+
         #region Commands
         public RelayCommand AddFolderCommand { get; }
         public RelayCommand RenameFolderCommand { get; }
@@ -579,6 +618,7 @@ namespace Prompter.ViewModels
         public RelayCommand ManageLorasCommand { get; }
         public RelayCommand<LoraModelInfo> RemoveActiveLoraCommand { get; }
         public RelayCommand ClearActiveLorasCommand { get; }
+        public RelayCommand<string> SetChatModelFilterCommand { get; }
 
         public string ThemeToggleIcon => ThemeService.Instance.CurrentTheme == AppTheme.Dark ? "☀️" : "🌙";
         public string ThemeToggleText => ThemeService.Instance.CurrentTheme == AppTheme.Dark ? "Light" : "Dark";
@@ -889,6 +929,51 @@ namespace Prompter.ViewModels
         }
 
         #region Local AI Chat & SwarmUI Image Methods
+        private void ExecuteSetChatModelFilter(string? filter)
+        {
+            if (Enum.TryParse<ChatModelFilterMode>(filter, true, out var mode))
+            {
+                ChatModelFilter = mode;
+            }
+        }
+
+        public void ApplyChatModelFilter()
+        {
+            var currentSelected = SelectedChatModel;
+
+            var filtered = _chatModelFilter switch
+            {
+                ChatModelFilterMode.Local => _allChatModels.Where(m => !m.IsCloudModel).ToList(),
+                ChatModelFilterMode.Cloud => _allChatModels.Where(m => m.IsCloudModel).ToList(),
+                _ => _allChatModels.ToList()
+            };
+
+            AvailableChatModels.Clear();
+            foreach (var m in filtered)
+            {
+                AvailableChatModels.Add(m);
+            }
+
+            if (currentSelected != null && AvailableChatModels.Contains(currentSelected))
+            {
+                SelectedChatModel = currentSelected;
+            }
+            else
+            {
+                SelectedChatModel = AvailableChatModels.FirstOrDefault(m => m.IsDefault)
+                                 ?? AvailableChatModels.FirstOrDefault(m => m.IsQwen)
+                                 ?? AvailableChatModels.FirstOrDefault(m => m.IsGemma)
+                                 ?? AvailableChatModels.FirstOrDefault();
+            }
+
+            OnPropertyChanged(nameof(AllChatModelsCount));
+            OnPropertyChanged(nameof(LocalChatModelsCount));
+            OnPropertyChanged(nameof(CloudChatModelsCount));
+            OnPropertyChanged(nameof(FilterAllText));
+            OnPropertyChanged(nameof(FilterLocalText));
+            OnPropertyChanged(nameof(FilterCloudText));
+        }
+
         public async Task ScanLocalModelsAsync()
         {
             OllamaStatusText = "Scanning Ollama...";
@@ -904,32 +989,35 @@ namespace Prompter.ViewModels
             IsSwarmConnected = isSwarmRunning;
             var imageModels = await _swarmUiService.ListModelsAsync();
 
-            Application.Current?.Dispatcher.Invoke(() =>
+            void UpdateModels()
             {
-                AvailableChatModels.Clear();
-                foreach (var m in chatModels) AvailableChatModels.Add(m);
-
-                AvailableImageModels.Clear();
-                foreach (var m in imageModels) AvailableImageModels.Add(m);
-
-                AvailableModels.Clear();
-                foreach (var m in chatModels) AvailableModels.Add(m);
-                foreach (var m in imageModels) AvailableModels.Add(m);
+                _allChatModels.Clear();
+                _allChatModels.AddRange(chatModels);
 
                 // Restore default or last chat model
                 var defaultChatModelId = LoadDefaultChatModel();
                 var savedChatModelId = LoadLastSelectedModel();
 
-                foreach (var m in AvailableChatModels)
+                foreach (var m in _allChatModels)
                 {
                     m.IsDefault = !string.IsNullOrEmpty(defaultChatModelId) &&
                                   (string.Equals(m.ModelId, defaultChatModelId, StringComparison.OrdinalIgnoreCase) ||
                                    string.Equals(m.Name, defaultChatModelId, StringComparison.OrdinalIgnoreCase));
                 }
 
+                ApplyChatModelFilter();
+
+                AvailableImageModels.Clear();
+                foreach (var m in imageModels) AvailableImageModels.Add(m);
+
+                AvailableModels.Clear();
+                foreach (var m in _allChatModels) AvailableModels.Add(m);
+                foreach (var m in imageModels) AvailableModels.Add(m);
+
                 if (!string.IsNullOrEmpty(defaultChatModelId))
                 {
-                    SelectedChatModel = AvailableChatModels.FirstOrDefault(m => m.IsDefault);
+                    SelectedChatModel = AvailableChatModels.FirstOrDefault(m => m.IsDefault)
+                                     ?? _allChatModels.FirstOrDefault(m => m.IsDefault);
                 }
                 if (SelectedChatModel == null && !string.IsNullOrEmpty(savedChatModelId))
                 {
@@ -971,11 +1059,24 @@ namespace Prompter.ViewModels
                 }
 
                 SelectedModel = IsImageMode ? SelectedImageModel : SelectedChatModel;
-            });
+            }
 
+            if (Application.Current?.Dispatcher != null && !Application.Current.Dispatcher.CheckAccess())
+            {
+                Application.Current.Dispatcher.Invoke(UpdateModels);
+            }
+            else
+            {
+                UpdateModels();
+            }
+
+            var localChatCount = _allChatModels.Count(m => !m.IsCloudModel);
+            var cloudChatCount = _allChatModels.Count(m => m.IsCloudModel);
             if (isOllamaRunning)
             {
-                OllamaStatusText = $"🟢 Ollama Online ({AvailableChatModels.Count} model{(AvailableChatModels.Count == 1 ? "" : "s")})";
+                OllamaStatusText = cloudChatCount > 0
+                    ? $"🟢 Ollama Online ({localChatCount} local, {cloudChatCount} cloud)"
+                    : $"🟢 Ollama Online ({AvailableChatModels.Count} model{(AvailableChatModels.Count == 1 ? "" : "s")})";
             }
             else
             {
@@ -1742,6 +1843,11 @@ namespace Prompter.ViewModels
             }
             else
             {
+                foreach (var m in _allChatModels)
+                {
+                    m.IsDefault = (m == model || string.Equals(m.ModelId, model.ModelId, StringComparison.OrdinalIgnoreCase)
+                                              || string.Equals(m.Name, model.Name, StringComparison.OrdinalIgnoreCase));
+                }
                 foreach (var m in AvailableChatModels)
                 {
                     m.IsDefault = (m == model || string.Equals(m.ModelId, model.ModelId, StringComparison.OrdinalIgnoreCase)

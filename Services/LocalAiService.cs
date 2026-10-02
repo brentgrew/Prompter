@@ -111,12 +111,17 @@ namespace Prompter.Services
             // 3. Query Ollama API if online to get active models & detailed metadata
             await ScanOllamaApiModelsAsync(discovered);
 
+            // 4. Query Ollama Cloud catalog or fallback to known cloud models
+            await ScanOllamaCloudModelsAsync(discovered);
+
             // Sort models:
-            // 1. Qwen and Gemma models first (top local models)
-            // 2. Models from Ollama library
-            // 3. Then by Name
+            // 1. Local models first, then Cloud models
+            // 2. Qwen and Gemma models first among local
+            // 3. Models from Ollama library
+            // 4. Then by DisplayName
             return discovered.Values
-                .OrderByDescending(m => m.IsQwen ? 2 : (m.IsGemma ? 1 : 0))
+                .OrderBy(m => m.IsCloudModel ? 1 : 0)
+                .ThenByDescending(m => m.IsQwen ? 2 : (m.IsGemma ? 1 : 0))
                 .ThenByDescending(m => m.Source == "Ollama")
                 .ThenBy(m => m.DisplayName)
                 .ToList();
@@ -265,6 +270,16 @@ namespace Prompter.Services
                      name.Contains("mixtral", StringComparison.OrdinalIgnoreCase) ||
                      name.Contains("codestral", StringComparison.OrdinalIgnoreCase))
                 info.Family = "mistral";
+            else if (name.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ||
+                     name.Contains("gptoss", StringComparison.OrdinalIgnoreCase))
+                info.Family = "gpt-oss";
+            else if (name.Contains("nemotron", StringComparison.OrdinalIgnoreCase))
+                info.Family = "nemotron";
+            else if (name.Contains("kimi", StringComparison.OrdinalIgnoreCase) ||
+                     name.Contains("moonshot", StringComparison.OrdinalIgnoreCase))
+                info.Family = "kimi";
+            else if (name.Contains("minimax", StringComparison.OrdinalIgnoreCase))
+                info.Family = "minimax";
             else if (name.Contains("phi", StringComparison.OrdinalIgnoreCase))
                 info.Family = "phi";
             else if (name.Contains("glm", StringComparison.OrdinalIgnoreCase))
@@ -301,6 +316,28 @@ namespace Prompter.Services
                             models[name] = info;
                         }
 
+                        if (item.TryGetProperty("remote_host", out var rh) && rh.GetString() is string remoteHost && !string.IsNullOrEmpty(remoteHost))
+                        {
+                            info.RemoteHost = remoteHost;
+                            info.Source = "Ollama Cloud";
+                            info.IsCloudModel = true;
+                        }
+
+                        if (item.TryGetProperty("remote_model", out var rm) && rm.GetString() is string remoteModel && !string.IsNullOrEmpty(remoteModel))
+                        {
+                            info.RemoteModel = remoteModel;
+                        }
+
+                        if (name.EndsWith(":cloud", StringComparison.OrdinalIgnoreCase) ||
+                            name.EndsWith("-cloud", StringComparison.OrdinalIgnoreCase))
+                        {
+                            info.IsCloudModel = true;
+                            if (string.IsNullOrEmpty(info.Source) || info.Source == "Ollama")
+                            {
+                                info.Source = "Ollama Cloud";
+                            }
+                        }
+
                         if (item.TryGetProperty("size", out var s) && s.TryGetInt64(out var sizeBytes))
                         {
                             info.SizeBytes = sizeBytes;
@@ -322,12 +359,151 @@ namespace Prompter.Services
                                 info.Family = f;
                             }
                         }
+
+                        if (string.IsNullOrEmpty(info.Family))
+                        {
+                            DetectFamilyFromName(info, name);
+                        }
                     }
                 }
             }
             catch
             {
                 // Ollama API might be currently offline
+            }
+        }
+
+        public static readonly (string Name, string Family, string ParamSize)[] KnownOllamaCloudModels = new[]
+        {
+            ("gpt-oss:20b", "gpt-oss", "20.9B"),
+            ("gpt-oss:120b", "gpt-oss", "120B"),
+            ("nemotron-3-nano:30b", "nemotron", "30B"),
+            ("nemotron-3-super", "nemotron", "Super"),
+            ("nemotron-3-ultra", "nemotron", "Ultra"),
+            ("gemma4:31b", "gemma", "31B"),
+            ("glm-5.3-flash", "glm", "321B"),
+            ("glm-5.3", "glm", "755B"),
+            ("glm-5.2", "glm", "5.2"),
+            ("deepseek-v4-pro:0813", "deepseek", "V4 Pro"),
+            ("deepseek-v4.1-flash", "deepseek", "V4.1 Flash"),
+            ("mistral-large-3:675b", "mistral", "675B"),
+            ("kimi-k3", "kimi", "K3"),
+            ("kimi-k2.7-code", "kimi", "K2.7 Code"),
+            ("kimi-k2.6", "kimi", "K2.6"),
+            ("minimax-m3", "minimax", "M3"),
+            ("minimax-m2.7", "minimax", "M2.7")
+        };
+
+        private async Task ScanOllamaCloudModelsAsync(Dictionary<string, LocalModelInfo> models)
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(3500);
+                using var request = new HttpRequestMessage(HttpMethod.Get, "https://ollama.com/api/tags");
+                using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cts.Token);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync(cts.Token);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("models", out var modelsArray) &&
+                        modelsArray.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in modelsArray.EnumerateArray())
+                        {
+                            var rawName = item.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                            if (string.IsNullOrWhiteSpace(rawName)) continue;
+
+                            var cloudTag = rawName.EndsWith(":cloud", StringComparison.OrdinalIgnoreCase) || rawName.EndsWith("-cloud", StringComparison.OrdinalIgnoreCase)
+                                ? rawName
+                                : $"{rawName}:cloud";
+
+                            bool alreadyExists = models.ContainsKey(cloudTag) ||
+                                models.ContainsKey(rawName) ||
+                                models.Values.Any(m => string.Equals(m.RemoteModel, rawName, StringComparison.OrdinalIgnoreCase) ||
+                                                       string.Equals(m.Name, $"{rawName}-cloud", StringComparison.OrdinalIgnoreCase) ||
+                                                       string.Equals(m.Name, $"{rawName}:cloud", StringComparison.OrdinalIgnoreCase));
+
+                            if (!alreadyExists)
+                            {
+                                var info = new LocalModelInfo
+                                {
+                                    Name = cloudTag,
+                                    ModelId = cloudTag,
+                                    Source = "Ollama Cloud",
+                                    IsCloudModel = true,
+                                    RemoteHost = "https://ollama.com",
+                                    RemoteModel = rawName
+                                };
+
+                                if (item.TryGetProperty("size", out var s) && s.TryGetInt64(out var sizeBytes) && sizeBytes > 0)
+                                {
+                                    info.SizeBytes = sizeBytes;
+                                }
+
+                                if (item.TryGetProperty("details", out var details) && details.ValueKind == JsonValueKind.Object)
+                                {
+                                    if (details.TryGetProperty("parameter_size", out var ps) && ps.GetString() is string param && !string.IsNullOrWhiteSpace(param))
+                                    {
+                                        info.ParameterSize = param;
+                                    }
+                                    if (details.TryGetProperty("family", out var f) && f.GetString() is string fam && !string.IsNullOrWhiteSpace(fam))
+                                    {
+                                        info.Family = fam;
+                                    }
+                                }
+
+                                if (string.IsNullOrEmpty(info.Family))
+                                {
+                                    DetectFamilyFromName(info, rawName);
+                                }
+
+                                if (string.IsNullOrEmpty(info.ParameterSize))
+                                {
+                                    var known = KnownOllamaCloudModels.FirstOrDefault(k => string.Equals(k.Name, rawName, StringComparison.OrdinalIgnoreCase));
+                                    if (!string.IsNullOrEmpty(known.ParamSize))
+                                    {
+                                        info.ParameterSize = known.ParamSize;
+                                    }
+                                }
+
+                                models[cloudTag] = info;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Network error or timeout: fall through to fallback catalog
+            }
+
+            // Fallback catalog: ensure all known cloud models are available
+            foreach (var (knownName, knownFamily, knownParam) in KnownOllamaCloudModels)
+            {
+                var cloudTag = $"{knownName}:cloud";
+                bool alreadyExists = models.ContainsKey(cloudTag) ||
+                    models.ContainsKey(knownName) ||
+                    models.Values.Any(m => string.Equals(m.RemoteModel, knownName, StringComparison.OrdinalIgnoreCase) ||
+                                           string.Equals(m.Name, $"{knownName}-cloud", StringComparison.OrdinalIgnoreCase) ||
+                                           string.Equals(m.Name, $"{knownName}:cloud", StringComparison.OrdinalIgnoreCase));
+
+                if (!alreadyExists)
+                {
+                    var info = new LocalModelInfo
+                    {
+                        Name = cloudTag,
+                        ModelId = cloudTag,
+                        Family = knownFamily,
+                        ParameterSize = knownParam,
+                        Source = "Ollama Cloud",
+                        IsCloudModel = true,
+                        RemoteHost = "https://ollama.com",
+                        RemoteModel = knownName
+                    };
+                    DetectFamilyFromName(info, knownName);
+                    models[cloudTag] = info;
+                }
             }
         }
 
@@ -384,7 +560,38 @@ namespace Prompter.Services
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
 
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                string? parsedErrorMessage = null;
+                try
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(errorBody))
+                    {
+                        using var errorDoc = JsonDocument.Parse(errorBody);
+                        if (errorDoc.RootElement.TryGetProperty("error", out var errProp) &&
+                            errProp.GetString() is string msg && !string.IsNullOrWhiteSpace(msg))
+                        {
+                            parsedErrorMessage = msg;
+                        }
+                        else
+                        {
+                            parsedErrorMessage = errorBody;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fall back
+                }
+
+                if (!string.IsNullOrWhiteSpace(parsedErrorMessage))
+                {
+                    throw new HttpRequestException(parsedErrorMessage, null, response.StatusCode);
+                }
+
+                response.EnsureSuccessStatusCode();
+            }
 
             using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var reader = new StreamReader(stream, Encoding.UTF8);

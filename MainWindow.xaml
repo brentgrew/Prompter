@@ -1293,6 +1293,80 @@
 
                             <!-- Text Model Selector (Visible in Chat Mode) -->
                             <StackPanel Visibility="{Binding IsChatMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
+                                <!-- Filter Pills: All | Local | Cloud -->
+                                <Border Background="{DynamicResource BadgeBackgroundBrush}" CornerRadius="6" Padding="2" Margin="0,0,0,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="1.15*"/>
+                                            <ColumnDefinition Width="1.15*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- All Filter -->
+                                        <Button Grid.Column="0" Command="{Binding SetChatModelFilterCommand}" CommandParameter="All"
+                                                Height="24" Padding="0" ToolTip="Show all local and Ollama Cloud models">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                    <Setter Property="FontSize" Value="10"/>
+                                                    <Setter Property="FontWeight" Value="Normal"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsFilterAll}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}"/>
+                                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                            <TextBlock Text="{Binding FilterAllText}" TextTrimming="CharacterEllipsis"/>
+                                        </Button>
+
+                                        <!-- Local Filter -->
+                                        <Button Grid.Column="1" Command="{Binding SetChatModelFilterCommand}" CommandParameter="Local"
+                                                Height="24" Padding="0" ToolTip="Show only offline local models">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                    <Setter Property="FontSize" Value="10"/>
+                                                    <Setter Property="FontWeight" Value="Normal"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsFilterLocal}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}"/>
+                                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                            <TextBlock Text="{Binding FilterLocalText}" TextTrimming="CharacterEllipsis"/>
+                                        </Button>
+
+                                        <!-- Cloud Filter -->
+                                        <Button Grid.Column="2" Command="{Binding SetChatModelFilterCommand}" CommandParameter="Cloud"
+                                                Height="24" Padding="0" ToolTip="Show only Ollama Cloud models">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                    <Setter Property="FontSize" Value="10"/>
+                                                    <Setter Property="FontWeight" Value="Normal"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsFilterCloud}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}"/>
+                                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                            <TextBlock Text="{Binding FilterCloudText}" TextTrimming="CharacterEllipsis"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+
                                 <ComboBox ItemsSource="{Binding AvailableChatModels}"
                                           SelectedItem="{Binding SelectedChatModel, Mode=TwoWay}"
                                           Height="30" VerticalContentAlignment="Center" Margin="0,0,0,6">
