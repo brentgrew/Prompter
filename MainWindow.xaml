@@ -266,6 +266,16 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Export Prompts Button -->
+                    <Button Style="{StaticResource OutlineButton}" Margin="0,0,10,0" Height="36" Padding="12,0"
+                            Command="{Binding ExportPromptsCommand}"
+                            ToolTip="Export all prompts to JSON for Chrome extension or backup">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="📤" FontSize="12" Margin="0,0,6,0"/>
+                            <TextBlock Text="Export Prompts" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+
                     <!-- Theme Toggle Button -->
                     <Button Style="{StaticResource OutlineButton}" Margin="0,0,10,0" Height="36" Padding="12,0"
                             Command="{Binding ToggleThemeCommand}"
@@ -321,8 +331,12 @@
                     <DockPanel Grid.Row="0" Margin="16,14,16,10">
                         <TextBlock Text="FOLDERS" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding Folders.Count, StringFormat='({0})'}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                        <Button Style="{StaticResource QuickCopyButton}" Content="➕ Add" HorizontalAlignment="Right"
-                                Padding="8,4" Command="{Binding AddFolderCommand}" ToolTip="Create a new folder"/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Style="{StaticResource QuickCopyButton}" Content="📤 Export" Margin="0,0,6,0"
+                                    Padding="8,4" Command="{Binding ExportPromptsCommand}" ToolTip="Export prompts for Chrome extension or backup"/>
+                            <Button Style="{StaticResource QuickCopyButton}" Content="➕ Add"
+                                    Padding="8,4" Command="{Binding AddFolderCommand}" ToolTip="Create a new folder"/>
+                        </StackPanel>
                     </DockPanel>
 
                     <!-- Folders List -->
@@ -430,6 +444,11 @@
                                 <MenuItem Header="🔑 Password &amp; Security Settings..."
                                           Command="{Binding ChangeFolderPasswordCommand}"/>
                                 <Separator/>
+                                <MenuItem Header="📤 Export Folder Prompts..."
+                                          Command="{Binding ExportFolderCommand}"/>
+                                <MenuItem Header="📤 Export All Prompts..."
+                                          Command="{Binding ExportPromptsCommand}"/>
+                                <Separator/>
                                 <MenuItem Header="✏️ Rename Folder"
                                           Command="{Binding RenameFolderCommand}"/>
                                 <MenuItem Header="🗑 Delete Folder"
@@ -481,6 +500,9 @@
 
                             <!-- Folder Actions Menu -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource QuickCopyButton}" Content="📤 Export" Margin="0,0,6,0"
+                                        Command="{Binding ExportFolderCommand}"
+                                        ToolTip="Export this folder to JSON for Chrome extension or backup"/>
                                 <Button Style="{StaticResource QuickCopyButton}" Content="Lock/Unlock" Margin="0,0,6,0"
                                         Command="{Binding ToggleLockFolderCommand}"
                                         Visibility="{Binding SelectedFolder.IsPasswordProtected, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"/>

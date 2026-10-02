@@ -83,6 +83,8 @@ namespace Prompter.ViewModels
             ToggleLockFolderCommand = new RelayCommand(ExecuteToggleLockFolder, () => SelectedFolder != null && SelectedFolder.IsPasswordProtected);
             LockAllFoldersCommand = new RelayCommand(ExecuteLockAllFolders);
             ChangeFolderPasswordCommand = new RelayCommand(ExecuteChangeFolderPassword, () => SelectedFolder != null);
+            ExportPromptsCommand = new RelayCommand(ExecuteExportPrompts);
+            ExportFolderCommand = new RelayCommand(ExecuteExportFolder, () => SelectedFolder != null);
 
             AddPromptCommand = new RelayCommand(ExecuteAddPrompt, () => SelectedFolder != null && SelectedFolder.CanAccessPrompts);
             DeletePromptCommand = new RelayCommand(ExecuteDeletePrompt, () => SelectedPrompt != null);
@@ -195,6 +197,7 @@ namespace Prompter.ViewModels
                     OnPropertyChanged(nameof(IsFolderSelected));
                     OnPropertyChanged(nameof(IsFolderLocked));
                     OnPropertyChanged(nameof(CanAccessPrompts));
+                    ExportFolderCommand?.RaiseCanExecuteChanged();
                     UpdatePromptsView();
 
                     // Auto-select first prompt in folder if available
@@ -597,6 +600,8 @@ namespace Prompter.ViewModels
         public RelayCommand CopyPromptCommand { get; }
         public RelayCommand SaveCurrentPromptCommand { get; }
         public RelayCommand ToggleThemeCommand { get; }
+        public RelayCommand ExportPromptsCommand { get; }
+        public RelayCommand ExportFolderCommand { get; }
 
         // Local AI Chat & Image Commands
         public RelayCommand SendChatMessageCommand { get; }
@@ -871,6 +876,123 @@ namespace Prompter.ViewModels
                     _storageService.SaveVault(Folders);
                     ShowStatus($"✓ Password updated for \"{SelectedFolder.Name}\".");
                 }
+            }
+        }
+
+        private void ExecuteExportPrompts()
+        {
+            try
+            {
+                var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                var defaultFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                var initialDir = Directory.Exists(downloads) ? downloads : defaultFolder;
+
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Export Prompter Vault for Chrome Extension / Backup",
+                    Filter = "Prompter Vault (*.json)|*.json|All Files (*.*)|*.*",
+                    FileName = "prompter_vault.json",
+                    InitialDirectory = initialDir,
+                    DefaultExt = ".json"
+                };
+
+                var owner = Application.Current?.MainWindow;
+                var result = owner != null ? saveDialog.ShowDialog(owner) : saveDialog.ShowDialog();
+                if (result == true)
+                {
+                    var destinationPath = saveDialog.FileName;
+                    var (folderCount, promptCount) = _storageService.ExportVaultToFile(Folders, destinationPath);
+
+                    ShowStatus($"✓ Exported {promptCount} prompt(s) across {folderCount} folder(s)!");
+
+                    var msgResult = MessageBox.Show(
+                        $"Successfully exported {promptCount} prompt(s) across {folderCount} folder(s) to:\n{destinationPath}\n\n" +
+                        "To import into the Prompter Chrome extension:\n" +
+                        "1. Open the Prompter Chrome extension.\n" +
+                        "2. Click the gear / options icon, select 'Import & Export'.\n" +
+                        "3. Select this JSON file to load your prompts.\n\n" +
+                        "Would you like to open the exported file in File Explorer?",
+                        "Export Complete",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Information);
+
+                    if (msgResult == MessageBoxResult.Yes)
+                    {
+                        try
+                        {
+                            Process.Start("explorer.exe", $"/select,\"{destinationPath}\"");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Failed to open explorer: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to export prompts: {ex.Message}", "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowStatus($"⚠️ Export failed: {ex.Message}");
+            }
+        }
+
+        private void ExecuteExportFolder(object? parameter = null)
+        {
+            var targetFolder = parameter as PromptFolder ?? SelectedFolder;
+            if (targetFolder == null) return;
+
+            try
+            {
+                var safeFolderName = string.Join("_", targetFolder.Name.Split(Path.GetInvalidFileNameChars())).Trim();
+                if (string.IsNullOrWhiteSpace(safeFolderName)) safeFolderName = "folder";
+
+                var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                var defaultFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                var initialDir = Directory.Exists(downloads) ? downloads : defaultFolder;
+
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = $"Export Folder \"{targetFolder.Name}\" for Chrome Extension",
+                    Filter = "Prompter Vault (*.json)|*.json|All Files (*.*)|*.*",
+                    FileName = $"prompter_{safeFolderName.ToLowerInvariant()}_vault.json",
+                    InitialDirectory = initialDir,
+                    DefaultExt = ".json"
+                };
+
+                var owner = Application.Current?.MainWindow;
+                var result = owner != null ? saveDialog.ShowDialog(owner) : saveDialog.ShowDialog();
+                if (result == true)
+                {
+                    var destinationPath = saveDialog.FileName;
+                    var (folderCount, promptCount) = _storageService.ExportVaultToFile(new[] { targetFolder }, destinationPath);
+
+                    ShowStatus($"✓ Exported \"{targetFolder.Name}\" ({promptCount} prompt(s))!");
+
+                    var msgResult = MessageBox.Show(
+                        $"Successfully exported folder \"{targetFolder.Name}\" with {promptCount} prompt(s) to:\n{destinationPath}\n\n" +
+                        "You can import this file directly into the Prompter Chrome extension.\n\n" +
+                        "Would you like to open the exported file in File Explorer?",
+                        "Export Complete",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Information);
+
+                    if (msgResult == MessageBoxResult.Yes)
+                    {
+                        try
+                        {
+                            Process.Start("explorer.exe", $"/select,\"{destinationPath}\"");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Failed to open explorer: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to export folder: {ex.Message}", "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowStatus($"⚠️ Export failed: {ex.Message}");
             }
         }
 

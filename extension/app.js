@@ -781,7 +781,14 @@
       if (folder.EncryptedPayload && (!folder.Prompts || folder.Prompts.length === 0)) {
         try {
           const decryptedJson = await PrompterCrypto.decrypt(folder.EncryptedPayload, password, folder.PasswordSalt);
-          folder.Prompts = JSON.parse(decryptedJson);
+          const parsed = JSON.parse(decryptedJson);
+          folder.Prompts = (Array.isArray(parsed) ? parsed : []).map(p => ({
+            Id: p.Id || p.id || 'p_' + Math.random().toString(36).substr(2, 9),
+            Title: p.Title || p.title || 'Untitled Prompt',
+            Content: p.Content || p.content || '',
+            CreatedAt: p.CreatedAt || p.createdAt || new Date().toISOString(),
+            UpdatedAt: p.UpdatedAt || p.updatedAt || new Date().toISOString()
+          }));
           folder.PromptCount = folder.Prompts.length;
         } catch (e) {
           console.error('Decryption failed:', e);

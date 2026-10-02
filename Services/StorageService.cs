@@ -192,6 +192,102 @@ namespace Prompter.Services
             File.Move(tempFile, _filePath, overwrite: true);
         }
 
+        public string ExportVaultJson(IEnumerable<PromptFolder> folders)
+        {
+            var vaultDto = new VaultDataDto
+            {
+                Version = 1,
+                UpdatedAt = DateTime.UtcNow,
+                Folders = new List<FolderDto>()
+            };
+
+            foreach (var folder in folders)
+            {
+                var folderDto = new FolderDto
+                {
+                    Id = folder.Id,
+                    Name = folder.Name,
+                    IsPasswordProtected = folder.IsPasswordProtected,
+                    PasswordSalt = folder.PasswordSalt,
+                    PasswordHash = folder.PasswordHash,
+                    EncryptedPayload = folder.EncryptedPayload,
+                    PromptCount = folder.PromptCount
+                };
+
+                if (folder.IsPasswordProtected)
+                {
+                    if (folder.IsUnlocked && !string.IsNullOrEmpty(folder.SessionPassword) && !string.IsNullOrEmpty(folder.PasswordSalt))
+                    {
+                        var promptsList = new List<PromptDto>();
+                        foreach (var p in folder.Prompts)
+                        {
+                            promptsList.Add(new PromptDto
+                            {
+                                Id = p.Id,
+                                Title = p.Title,
+                                Content = p.Content,
+                                CreatedAt = p.CreatedAt,
+                                UpdatedAt = p.UpdatedAt
+                            });
+                        }
+
+                        var promptsJson = JsonSerializer.Serialize(promptsList, JsonOptions);
+                        folderDto.EncryptedPayload = CryptoService.Encrypt(promptsJson, folder.SessionPassword, folder.PasswordSalt);
+                        folderDto.PromptCount = folder.Prompts.Count;
+                    }
+                    else
+                    {
+                        folderDto.EncryptedPayload = folder.EncryptedPayload;
+                        folderDto.PromptCount = folder.CachedPromptCount;
+                    }
+                    folderDto.Prompts = null;
+                }
+                else
+                {
+                    folderDto.EncryptedPayload = null;
+                    folderDto.Prompts = new List<PromptDto>();
+                    foreach (var p in folder.Prompts)
+                    {
+                        folderDto.Prompts.Add(new PromptDto
+                        {
+                            Id = p.Id,
+                            Title = p.Title,
+                            Content = p.Content,
+                            CreatedAt = p.CreatedAt,
+                            UpdatedAt = p.UpdatedAt
+                        });
+                    }
+                    folderDto.PromptCount = folder.Prompts.Count;
+                }
+
+                vaultDto.Folders.Add(folderDto);
+            }
+
+            return JsonSerializer.Serialize(vaultDto, JsonOptions);
+        }
+
+        public (int FolderCount, int PromptCount) ExportVaultToFile(IEnumerable<PromptFolder> folders, string destinationPath)
+        {
+            var folderList = folders is IList<PromptFolder> list ? list : new List<PromptFolder>(folders);
+            var json = ExportVaultJson(folderList);
+
+            var dir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            File.WriteAllText(destinationPath, json);
+
+            int totalPrompts = 0;
+            foreach (var f in folderList)
+            {
+                totalPrompts += f.PromptCount;
+            }
+
+            return (folderList.Count, totalPrompts);
+        }
+
         public bool TryUnlockFolder(PromptFolder folder, string password, out string? errorMessage)
         {
             errorMessage = null;

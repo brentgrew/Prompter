@@ -206,6 +206,94 @@ namespace Prompter.Tests
             Assert.IsTrue(publicReload[0].IsUnlocked);
             Assert.AreEqual("my-secret-key", publicReload[0].Prompts[0].Content);
         }
+
+        [TestMethod]
+        public void TestExportVaultJsonSchemaAndCompatibility()
+        {
+            var storage = new StorageService(_tempFile);
+
+            var folder1 = new PromptFolder("Public Folder", isPasswordProtected: false);
+            folder1.Prompts.Add(new PromptItem("Test Prompt 1", "Content of test prompt 1"));
+            folder1.Prompts.Add(new PromptItem("Test Prompt 2", "Content of test prompt 2"));
+
+            var folder2 = new PromptFolder("Protected Folder", isPasswordProtected: true);
+            var salt = CryptoService.GenerateSaltBase64();
+            var pwd = "SecretPassword123";
+            folder2.PasswordSalt = salt;
+            folder2.PasswordHash = CryptoService.HashPassword(pwd, salt);
+            folder2.SessionPassword = pwd;
+            folder2.IsUnlocked = true;
+            folder2.Prompts.Add(new PromptItem("Confidential Prompt", "Top secret prompt text"));
+
+            var folders = new[] { folder1, folder2 };
+
+            // Act
+            var exportedJson = storage.ExportVaultJson(folders);
+
+            // Assert
+            Assert.IsFalse(string.IsNullOrWhiteSpace(exportedJson));
+            Assert.Contains("version", exportedJson);
+            Assert.Contains("folders", exportedJson);
+            Assert.Contains("Public Folder", exportedJson);
+            Assert.Contains("Test Prompt 1", exportedJson);
+            Assert.Contains("Content of test prompt 1", exportedJson);
+
+            // Sensitive folder assertions
+            Assert.Contains("Protected Folder", exportedJson);
+            Assert.Contains("encryptedPayload", exportedJson);
+            Assert.DoesNotContain("Top secret prompt text", exportedJson, "Confidential prompt should NOT leak as plaintext!");
+
+            // Test deserialization matching extension schema
+            using var doc = System.Text.Json.JsonDocument.Parse(exportedJson);
+            var root = doc.RootElement;
+            Assert.IsTrue(root.TryGetProperty("folders", out var foldersArray));
+            Assert.AreEqual(2, foldersArray.GetArrayLength());
+
+            var firstFolder = foldersArray[0];
+            Assert.AreEqual("Public Folder", firstFolder.GetProperty("name").GetString());
+            Assert.IsTrue(firstFolder.TryGetProperty("prompts", out var promptsArray));
+            Assert.AreEqual(2, promptsArray.GetArrayLength());
+            Assert.AreEqual("Test Prompt 1", promptsArray[0].GetProperty("title").GetString());
+            Assert.AreEqual("Content of test prompt 1", promptsArray[0].GetProperty("content").GetString());
+
+            var secondFolder = foldersArray[1];
+            Assert.AreEqual("Protected Folder", secondFolder.GetProperty("name").GetString());
+            Assert.IsTrue(secondFolder.GetProperty("isPasswordProtected").GetBoolean());
+            Assert.IsFalse(string.IsNullOrEmpty(secondFolder.GetProperty("encryptedPayload").GetString()));
+        }
+
+        [TestMethod]
+        public void TestExportVaultToFile()
+        {
+            var storage = new StorageService(_tempFile);
+            var exportFile = Path.Combine(Path.GetTempPath(), $"prompter_export_{Guid.NewGuid():N}.json");
+
+            try
+            {
+                var folder = new PromptFolder("Export Test Folder", isPasswordProtected: false);
+                folder.Prompts.Add(new PromptItem("Sample P1", "Description text 1"));
+                folder.Prompts.Add(new PromptItem("Sample P2", "Description text 2"));
+                folder.Prompts.Add(new PromptItem("Sample P3", "Description text 3"));
+
+                var (folderCount, promptCount) = storage.ExportVaultToFile(new[] { folder }, exportFile);
+
+                Assert.AreEqual(1, folderCount);
+                Assert.AreEqual(3, promptCount);
+                Assert.IsTrue(File.Exists(exportFile));
+
+                var fileContent = File.ReadAllText(exportFile);
+                Assert.Contains("Export Test Folder", fileContent);
+                Assert.Contains("Sample P1", fileContent);
+                Assert.Contains("Sample P3", fileContent);
+            }
+            finally
+            {
+                if (File.Exists(exportFile))
+                {
+                    try { File.Delete(exportFile); } catch { }
+                }
+            }
+        }
     }
 
     [TestClass]
